@@ -80,7 +80,7 @@ class SessionRepository(
             }
             is Outcome.Failure -> {
                 val error = verified.error
-                if (error.requiresLogin || error is AppError.ChallengeRequired) {
+                if (error.requiresLogin) {
                     forget()
                     SessionState.LoggedOut(error)
                 } else {

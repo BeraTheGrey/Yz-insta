@@ -17,9 +17,12 @@ sealed interface AppError {
     data class Storage(override val detail: String?) : AppError
     data class Unknown(override val detail: String?) : AppError
 
-    /** The stored session cannot be used any more; the user has to log in again. */
+    /**
+     * The stored session cannot be used any more; the user has to log in again
+     * (for a challenge: log in again and pass Instagram's check in the WebView).
+     */
     val requiresLogin: Boolean
-        get() = this is NotLoggedIn || this is SessionExpired || this is InvalidCookies
+        get() = this is NotLoggedIn || this is SessionExpired || this is InvalidCookies || this is ChallengeRequired
 }
 
 sealed interface Outcome<out T> {

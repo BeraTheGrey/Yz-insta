@@ -54,6 +54,7 @@ class BridgeEnvelopeTest {
     fun `session errors require login`() {
         assertTrue(AppError.SessionExpired.requiresLogin)
         assertTrue(AppError.NotLoggedIn.requiresLogin)
+        assertTrue(AppError.ChallengeRequired.requiresLogin)
         assertTrue(!AppError.Network.requiresLogin)
         assertTrue(!AppError.RateLimited.requiresLogin)
     }
