@@ -18,10 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.res.stringResource
-import com.chaquo.python.Python
+import com.yzinsta.downloader.data.python.InstaloaderBridge
 import com.yzinsta.downloader.ui.theme.YzInstaTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,7 +29,7 @@ class MainActivity : ComponentActivity() {
             YzInstaTheme {
                 Scaffold { padding ->
                     Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                        PythonStatus()
+                        PythonStatus((application as YzInstaApp).container.bridge)
                     }
                 }
             }
@@ -40,12 +38,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun PythonStatus() {
+private fun PythonStatus(bridge: InstaloaderBridge) {
     var version by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
-        version = withContext(Dispatchers.IO) {
-            Python.getInstance().getModule("igbridge").callAttr("version").toString()
-        }
+        version = bridge.instaloaderVersion()
     }
     Text(
         version?.let { stringResource(R.string.python_ready, it) }
