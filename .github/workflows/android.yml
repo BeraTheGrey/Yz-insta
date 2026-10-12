@@ -1,0 +1,50 @@
+name: Android build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install test deps
+        run: |
+          IL=$(sed -n 's/^instaloader = "\(.*\)"/\1/p' gradle/libs.versions.toml)
+          pip install "instaloader==$IL" pytest
+      - name: Pytest
+        run: |
+          if [ -d app/src/test/python ]; then pytest -q app/src/test/python; else echo "no python tests yet"; fi
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      # Chaquopy's buildPython must match the app's Python major.minor (libs.versions.toml).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Unit tests
+        run: ./gradlew --stacktrace :app:testDebugUnitTest
+      - name: Assemble debug APK
+        run: ./gradlew --stacktrace :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/*.apk

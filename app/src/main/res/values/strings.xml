@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">YzInsta</string>
+    <string name="python_loading">Starting Python…</string>
+    <string name="python_ready">Instaloader %1$s ready</string>
+</resources>
