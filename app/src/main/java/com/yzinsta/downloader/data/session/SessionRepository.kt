@@ -41,8 +41,8 @@ class SessionRepository(
         _state.value = if (stored == null) SessionState.LoggedOut() else activate(stored.cookies, stored.username)
     }
 
-    /** The WebView reached a logged-in state; take over its cookies. */
-    suspend fun completeWebLogin(cookies: InstagramCookies) = mutex.withLock {
+    /** Take over cookies from the login WebView (or pasted by the user) and verify them. */
+    suspend fun login(cookies: InstagramCookies) = mutex.withLock {
         _state.value = SessionState.Checking
         _state.value = activate(cookies, knownUsername = null)
     }

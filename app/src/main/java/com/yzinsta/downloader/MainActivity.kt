@@ -92,6 +92,7 @@ private fun AppRoot(sessionVm: SessionViewModel, downloadVm: DownloadViewModel) 
             WelcomeScreen(
                 reason = s.reason,
                 onLogin = { sessionVm.clearWebCookiesForFreshLogin { showLogin = true } },
+                onCookieLogin = sessionVm::loginWithPastedCookies,
             )
         }
         is SessionState.LoggedIn -> HomeScreen(

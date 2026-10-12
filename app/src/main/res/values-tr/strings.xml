@@ -32,4 +32,12 @@
         <item quantity="other">%d dosya kaydedildi.</item>
     </plurals>
     <string name="download_done_where">Fotoğraflar: Pictures/InstaloaderApp · Videolar: Movies/InstaloaderApp</string>
+    <string name="more_options">Diğer seçenekler</string>
+    <string name="reload">Yenile</string>
+    <string name="desktop_site">Masaüstü sürümü</string>
+    <string name="cookie_login_button">Çerezle giriş yap (gelişmiş)</string>
+    <string name="cookie_login_title">Çerezle giriş</string>
+    <string name="cookie_login_body">Instagram giriş sayfası açılmıyorsa bunu kullan. Bilgisayarındaki tarayıcıda instagram.com\'a giriş yap, geliştirici araçlarını aç (F12) → Application/Depolama → Cookies → https://www.instagram.com ve \"sessionid\" değerini (ya da Cookie başlığının tamamını) kopyala. Bu değer hesabına tam erişim sağlar: kimseyle paylaşma.</string>
+    <string name="cookie_login_field">sessionid veya Cookie başlığı</string>
+    <string name="cookie_login_confirm">Giriş yap</string>
 </resources>

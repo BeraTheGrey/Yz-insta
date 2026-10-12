@@ -117,9 +117,18 @@ bunları kontrol edin:
 - **Gizli gönderi / bulunamadı ayrımı.** Instagram, erişiminiz olmayan gizli bir gönderi için
   de boş yanıt döndürür; bu yüzden "bulunamadı" mesajı "takip etmediğiniz gizli bir hesaba
   ait olabilir" der.
-- **WebView girişi.** Instagram bazı durumlarda WebView'den gelen girişlere ek doğrulama
-  (checkpoint) isteyebilir. Doğrulama WebView içinde tamamlanabilir. "Facebook ile giriş"
-  akışı WebView'de çalışmayabilir.
+- **WebView girişi.** Instagram, gömülü tarayıcılardan gelen girişlere ek doğrulama
+  (checkpoint) isteyebilir ya da sayfayı düzgün göstermeyebilir. WebView ayarları Seal'in
+  çerez sayfasıyla aynı: tüm http(s) gezinmelerine izin verilir, `X-Requested-With`
+  başlığı kapatılır. Giriş ekranının ⋮ menüsünde **Yenile** ve **Masaüstü sürümü**
+  seçenekleri var. Ana sayfa yüklenemezse hata ekranda gösterilir; WebView konsol
+  mesajları logcat'e `LoginWebView` etiketiyle yazılır.
+- **Yedek giriş: çerez yapıştırma.** Giriş sayfası hiç çalışmazsa, karşılama ekranındaki
+  "Çerezle giriş yap (gelişmiş)" ile bilgisayardaki tarayıcıdan kopyalanan `sessionid`
+  değeri (ya da Cookie başlığının tamamı) yapıştırılabilir. Şifre gerekmez. `ds_user_id`
+  değeri `sessionid` içinden çıkarılır. `csrftoken` verilmezse rastgele bir değer üretilir;
+  Instaloader bu değeri yalnızca başlıkta geri gönderir. Bu akış gerçek bir hesapla test
+  edilmedi.
 - **Oturum ömrü.** Çerezlerin süresi Instagram'a bağlıdır. Süre dolunca uygulama yeniden
   giriş ister.
 - **Kapsam (MVP).** Yalnızca tek gönderi, reel ve IGTV. Story, highlight ve profil indirme
@@ -132,6 +141,6 @@ bunları kontrol edin:
 - **`EncryptedSharedPreferences`.** `androidx.security:security-crypto` Google tarafından
   kullanımdan kaldırıldı (deprecated), ancak çalışmaya devam ediyor. İleride Keystore +
   DataStore'a geçilebilir. Bu değişiklik `SessionStore` arayüzünün arkasında kalır.
-- **Test durumu.** Kod; birim testleri (31 Kotlin, 36 Python) ve hem yerel hem CI derlemesiyle
+- **Test durumu.** Kod; birim testleri (35 Kotlin, 36 Python) ve hem yerel hem CI derlemesiyle
   doğrulandı. Cihaz/emülatör üzerinde ve gerçek bir Instagram hesabıyla uçtan uca test
   yapılamadı. İlk kurulumda giriş → doğrulama → indirme akışını bir kez elle deneyin.

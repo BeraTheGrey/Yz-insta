@@ -55,7 +55,7 @@ class SessionRepositoryTest {
 
     @Test
     fun `web login verifies and stores cookies with username`() = runTest {
-        repo.completeWebLogin(cookies)
+        repo.login(cookies)
         assertEquals(SessionState.LoggedIn("alice"), repo.state.value)
         assertEquals(cookies, bridge.loaded)
         assertEquals(StoredSession(cookies, "alice"), store.stored)
@@ -93,7 +93,7 @@ class SessionRepositoryTest {
     @Test
     fun `rate limit during web login still stores the fresh cookies`() = runTest {
         bridge.verifyResult = Outcome.Failure(AppError.RateLimited)
-        repo.completeWebLogin(cookies)
+        repo.login(cookies)
         assertEquals(SessionState.LoggedIn(null, warning = AppError.RateLimited), repo.state.value)
         assertEquals(StoredSession(cookies, null), store.stored)
     }
@@ -101,7 +101,7 @@ class SessionRepositoryTest {
     @Test
     fun `challenge forces a new login`() = runTest {
         bridge.verifyResult = Outcome.Failure(AppError.ChallengeRequired)
-        repo.completeWebLogin(cookies)
+        repo.login(cookies)
         assertEquals(SessionState.LoggedOut(AppError.ChallengeRequired), repo.state.value)
         assertNull(store.stored)
     }
@@ -109,14 +109,14 @@ class SessionRepositoryTest {
     @Test
     fun `cookies rejected by python are not stored`() = runTest {
         bridge.loadResult = Outcome.Failure(AppError.InvalidCookies("missing"))
-        repo.completeWebLogin(cookies)
+        repo.login(cookies)
         assertTrue((repo.state.value as SessionState.LoggedOut).reason is AppError.InvalidCookies)
         assertNull(store.stored)
     }
 
     @Test
     fun `logout clears store, python session and webview`() = runTest {
-        repo.completeWebLogin(cookies)
+        repo.login(cookies)
         repo.logout()
         assertEquals(SessionState.LoggedOut(), repo.state.value)
         assertNull(store.stored)
@@ -126,7 +126,7 @@ class SessionRepositoryTest {
 
     @Test
     fun `invalidate from a download logs out with reason`() = runTest {
-        repo.completeWebLogin(cookies)
+        repo.login(cookies)
         repo.invalidate(AppError.SessionExpired)
         assertEquals(SessionState.LoggedOut(AppError.SessionExpired), repo.state.value)
         assertNull(store.stored)

@@ -2,6 +2,7 @@ package com.yzinsta.downloader.ui.session
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.yzinsta.downloader.data.session.InstagramCookies
 import com.yzinsta.downloader.data.session.SessionRepository
 import com.yzinsta.downloader.data.session.SessionState
 import com.yzinsta.downloader.data.session.WebCookieJar
@@ -27,8 +28,14 @@ class SessionViewModel(
     suspend fun tryCompleteWebLogin(): Boolean {
         val cookies = webCookies.instagramCookies()
         if (!cookies.isComplete) return false
-        viewModelScope.launch { repository.completeWebLogin(cookies) }
+        viewModelScope.launch { repository.login(cookies) }
         return true
+    }
+
+    /** Fallback when the WebView login doesn't work: cookies pasted by the user. */
+    fun loginWithPastedCookies(text: String) {
+        val cookies = InstagramCookies.fromUserInput(text)
+        viewModelScope.launch { repository.login(cookies) }
     }
 
     fun clearWebCookiesForFreshLogin(onDone: () -> Unit) {

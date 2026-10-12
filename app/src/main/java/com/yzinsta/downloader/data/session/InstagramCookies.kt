@@ -1,6 +1,8 @@
 package com.yzinsta.downloader.data.session
 
 import org.json.JSONObject
+import java.security.SecureRandom
+import java.util.Random
 
 /** Instagram web cookies as captured from the WebView. Values are kept verbatim (URL-encoded). */
 data class InstagramCookies(val values: Map<String, String>) {
@@ -31,6 +33,34 @@ data class InstagramCookies(val values: Map<String, String>) {
             }
             return InstagramCookies(map)
         }
+
+        /**
+         * Manual fallback login: accepts a full Cookie header ("a=1; b=2"), a JSON object,
+         * or just the sessionid value. ds_user_id is the numeric prefix of sessionid
+         * ("<id>%3A<token>%3A..."), so it can be derived. csrftoken is only echoed back by
+         * Instaloader as X-CSRFToken; if it is missing a random one is generated.
+         */
+        fun fromUserInput(input: String, random: Random = SecureRandom()): InstagramCookies {
+            val text = input.trim()
+            val parsed = when {
+                text.startsWith("{") -> runCatching { fromJson(text) }.getOrElse { InstagramCookies(emptyMap()) }
+                text.contains('=') -> fromCookieHeader(text)
+                text.isNotEmpty() -> InstagramCookies(mapOf("sessionid" to text.removeSurrounding("\"")))
+                else -> InstagramCookies(emptyMap())
+            }
+            val sessionId = parsed.values["sessionid"]?.takeIf { it.isNotBlank() } ?: return parsed
+            val values = LinkedHashMap(parsed.values)
+            if (values["ds_user_id"].isNullOrBlank()) {
+                USER_ID_PREFIX.find(sessionId)?.let { values["ds_user_id"] = it.groupValues[1] }
+            }
+            if (values["csrftoken"].isNullOrBlank()) {
+                values["csrftoken"] = String(CharArray(32) { CSRF_ALPHABET[random.nextInt(CSRF_ALPHABET.length)] })
+            }
+            return InstagramCookies(values)
+        }
+
+        private val USER_ID_PREFIX = Regex("""^(\d+)(?:%3A|:)""", RegexOption.IGNORE_CASE)
+        private const val CSRF_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
         fun fromJson(json: String): InstagramCookies {
             val obj = JSONObject(json)

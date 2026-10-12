@@ -58,4 +58,35 @@ class InstagramCookiesTest {
         assertFalse(text.contains("qWeRtY"))
         assertFalse(text.contains("AbC123"))
     }
+
+    @Test
+    fun `pasted sessionid alone derives user id and csrf token`() {
+        val cookies = InstagramCookies.fromUserInput("  4567890%3AqWeRtY%3A12%3AAYc-abc  ", java.util.Random(1))
+        assertEquals("4567890%3AqWeRtY%3A12%3AAYc-abc", cookies.values["sessionid"])
+        assertEquals("4567890", cookies.values["ds_user_id"])
+        assertEquals(32, cookies.values["csrftoken"]!!.length)
+        assertTrue(cookies.isComplete)
+    }
+
+    @Test
+    fun `pasted cookie header keeps real values`() {
+        val cookies = InstagramCookies.fromUserInput(header)
+        assertEquals(InstagramCookies.fromCookieHeader(header), cookies)
+    }
+
+    @Test
+    fun `pasted json and decoded colon form`() {
+        val cookies = InstagramCookies.fromUserInput("""{"sessionid":"42:tok:1","csrftoken":"c"}""")
+        assertEquals("42", cookies.values["ds_user_id"])
+        assertEquals("c", cookies.values["csrftoken"])
+    }
+
+    @Test
+    fun `garbage input stays incomplete`() {
+        assertFalse(InstagramCookies.fromUserInput("").isComplete)
+        assertFalse(InstagramCookies.fromUserInput("{broken").isComplete)
+        assertFalse(InstagramCookies.fromUserInput("mid=x; csrftoken=y").isComplete)
+        // sessionid without a numeric prefix: user id can't be derived
+        assertEquals(listOf("ds_user_id"), InstagramCookies.fromUserInput("abcdef").missing)
+    }
 }
