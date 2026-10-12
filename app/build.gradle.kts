@@ -42,7 +42,10 @@ android {
 }
 
 kotlin {
-    jvmToolchain(17)
+    compilerOptions {
+        // Bytecode target only; any JDK >= 17 can run the build.
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
 
 chaquopy {

@@ -53,7 +53,7 @@ DownloadRepository: cache/downloads/<kod>/ → MediaStore
 
 Gerekenler:
 
-- JDK 17
+- JDK 17 veya üstü
 - Android SDK; platform `android-36` ve build-tools (Android Studio ile ya da `sdkmanager` ile kurulabilir)
 - **Python 3.13**, `PATH` üzerinde `python3.13` (Windows'ta `py -3.13`) olarak. Chaquopy, pip
   paketlerini derleme sırasında bu Python ile kurar. Sürüm, uygulamanın Python sürümüyle
@@ -128,10 +128,10 @@ bunları kontrol edin:
   tarafından öldürülürse yarıda kalır. Foreground service ve indirme geçmişi henüz yok.
 - **Android 8–9.** Dosyalar galeriye `WRITE_EXTERNAL_STORAGE` izniyle doğrudan kopyalanır
   (izin ilk indirmede istenir). Android 10+ izin gerektirmez.
-- **Uygulama boyutu.** Gömülü Python yüzünden debug APK ~30 MB'tır (iki ABI).
+- **Uygulama boyutu.** Gömülü Python yüzünden debug APK ~49 MB'tır (iki ABI; CI artifact zip'i ~30 MB).
 - **`EncryptedSharedPreferences`.** `androidx.security:security-crypto` Google tarafından
   kullanımdan kaldırıldı (deprecated), ancak çalışmaya devam ediyor. İleride Keystore +
   DataStore'a geçilebilir. Bu değişiklik `SessionStore` arayüzünün arkasında kalır.
-- **Test durumu.** Kod; birim testleri ve CI derlemesiyle doğrulandı. Gerçek bir Instagram
-  hesabıyla cihaz üzerinde uçtan uca test bu ortamda yapılamadı. İlk kurulumda giriş →
-  doğrulama → indirme akışını bir kez elle deneyin.
+- **Test durumu.** Kod; birim testleri (31 Kotlin, 36 Python) ve hem yerel hem CI derlemesiyle
+  doğrulandı. Cihaz/emülatör üzerinde ve gerçek bir Instagram hesabıyla uçtan uca test
+  yapılamadı. İlk kurulumda giriş → doğrulama → indirme akışını bir kez elle deneyin.
