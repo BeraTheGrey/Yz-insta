@@ -129,6 +129,22 @@ Betik her adımı ayrı yazdırır (çerez yükleme, oturum doğrulama, profil, 
 indirme). Bir adım başarısız olursa hata kodunu (`RATE_LIMITED`, `SESSION_EXPIRED`, …)
 gösterir. Dosyalar `story-test-output/` klasörüne iner. `--debug` tam hata çıktısını verir.
 
+### Profil indirmeyi ölçme (masaüstü)
+
+Profilin tamamını indirme uygulamaya eklenmeden önce `tools/check_profile.py` ile ölçülür:
+listeler geliyor mu, indirme çalışıyor mu, kaç istekten sonra Instagram yavaşlatıyor?
+
+```bash
+python3 tools/check_profile.py --sessionid "…" KULLANICI                        # en yeni 30 gönderiyi listele
+python3 tools/check_profile.py --sessionid "…" KULLANICI --limit 20 --download   # 20 gönderiyi indir
+python3 tools/check_profile.py --sessionid "…" KULLANICI --limit 20 --reels --highlights --download
+python3 tools/check_profile.py --sessionid "…" KULLANICI --limit 100 --download --patient  # sınırlamada bekle, süreyi raporla
+```
+
+Sonda istek sayısı, geçen süre, beklenen süre ve ilk yavaşlatmanın kaçıncı istekte
+geldiği yazılır. Dosya adları uygulamadakiyle aynıdır (`--tz Europe/Istanbul`; Windows'ta
+önce `pip install tzdata`).
+
 ### Instaloader'ı güncelleme
 
 Sürüm tek bir yerde tutulur: `gradle/libs.versions.toml` → `instaloader = "…"`. Gradle

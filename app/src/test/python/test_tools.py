@@ -90,3 +90,65 @@ def test_story_flow_reports_failing_step(monkeypatch, tmp_path, capsys):
     assert check_story.main() == 2
     out = capsys.readouterr().out
     assert "[RATE_LIMITED]" in out and "look up @someone" in out
+
+
+# --- check_profile -------------------------------------------------------------
+
+import check_profile  # noqa: E402
+
+
+@pytest.mark.parametrize("text", ["zeynep.k_1", "@zeynep.k_1", "https://www.instagram.com/zeynep.k_1/",
+                                  "https://instagram.com/zeynep.k_1?igsh=abc"])
+def test_parse_username(text):
+    assert check_profile.parse_username(text) == "zeynep.k_1"
+
+
+class FakePost:
+    def __init__(self, shortcode):
+        self.shortcode = shortcode
+        self.date_utc = datetime.datetime(2026, 10, 1, 12, 0, 0)
+        self._node = {"owner": {"username": "zeynep"}}
+
+
+class FakeFullProfile:
+    mediacount, is_private, followed_by_viewer, userid, username = 3, False, True, 42, "zeynep"
+
+    def get_posts(self):
+        return iter([FakePost("AAA"), FakePost("BBB"), FakePost("CCC")])
+
+    def get_reels(self):
+        return iter([FakePost("BBB"), FakePost("RRR")])
+
+
+def test_profile_flow_offline(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(igbridge, "check_login", lambda loader: "me")
+    monkeypatch.setattr(instaloader.Profile, "from_username", staticmethod(lambda ctx, name: FakeFullProfile()))
+    downloaded = []
+
+    def fake_download_post(self, post, target):
+        downloaded.append(post.shortcode)
+        path = self.dirname_pattern.replace("{{", "{").replace("}}", "}")
+        with open(os.path.join(path, post.shortcode + ".jpg"), "wb") as fh:
+            fh.write(b"x")
+        return True
+    monkeypatch.setattr(instaloader.Instaloader, "download_post", fake_download_post)
+    monkeypatch.setattr(sys, "argv", ["check_profile.py", "--sessionid", "1%3At", "--out", str(tmp_path),
+                                      "--limit", "2", "--reels", "--download", "--tz", "Europe/Istanbul",
+                                      "https://www.instagram.com/zeynep/"])
+    assert check_profile.main() == 0
+    assert downloaded == ["AAA", "BBB", "RRR"]  # newest 2 posts + reels not already downloaded
+    out = capsys.readouterr().out
+    assert "zeynep_2026-10-01_15-00-00_AAA.jpg" in out
+    assert "requests to Instagram:" in out and "no throttling seen" in out
+
+
+def test_profile_rate_limit_is_reported(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(igbridge, "check_login", lambda loader: "me")
+
+    class LimitedProfile(FakeFullProfile):
+        def get_posts(self):
+            raise igbridge.RateLimitedError("429 Too Many Requests")
+    monkeypatch.setattr(instaloader.Profile, "from_username", staticmethod(lambda ctx, name: LimitedProfile()))
+    monkeypatch.setattr(sys, "argv", ["check_profile.py", "--sessionid", "1%3At", "--out", str(tmp_path), "zeynep"])
+    assert check_profile.main() == 2
+    assert "[RATE_LIMITED]" in capsys.readouterr().out
