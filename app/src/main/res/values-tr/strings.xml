@@ -7,7 +7,6 @@
     <string name="logged_in_unverified">Giriş yapıldı (doğrulanmadı)</string>
     <string name="logout">Çıkış yap</string>
     <string name="retry">Tekrar dene</string>
-    <string name="download_coming_soon">İndirme bir sonraki adımda geliyor.</string>
 
     <string name="error_detail">Ayrıntı: %1$s</string>
     <string name="error_not_logged_in">Giriş yapılmamış.</string>
@@ -21,4 +20,16 @@
     <string name="error_invalid_cookies">Giriş tamamlanamadı (Instagram oturum çerezleri eksik). Lütfen yeniden giriş yap.</string>
     <string name="error_storage">Dosya galeriye kaydedilemedi.</string>
     <string name="error_unknown">Bir şeyler ters gitti.</string>
+    <string name="share_target_label">YzInsta ile indir</string>
+    <string name="link_label">Gönderi veya reel bağlantısı</string>
+    <string name="paste">Yapıştır</string>
+    <string name="download">İndir</string>
+    <string name="download_hint">Bir bağlantı yapıştır ya da Instagram\'da bir gönderiyi YzInsta\'ya paylaş.</string>
+    <string name="stage_fetching">Gönderi Instagram\'dan alınıyor…</string>
+    <string name="stage_saving">Galeriye kaydediliyor (%1$d/%2$d)…</string>
+    <plurals name="download_done">
+        <item quantity="one">%d dosya kaydedildi.</item>
+        <item quantity="other">%d dosya kaydedildi.</item>
+    </plurals>
+    <string name="download_done_where">Fotoğraflar: Pictures/InstaloaderApp · Videolar: Movies/InstaloaderApp</string>
 </resources>

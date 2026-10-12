@@ -11,6 +11,7 @@ Kotlin. Keep both in sync.
 """
 
 import json
+import os
 import sys
 import time
 
@@ -252,6 +253,60 @@ def clear_session():
         finally:
             _loader = None
     return None
+
+
+# --------------------------------------------------------------------------- #
+# Downloads
+# --------------------------------------------------------------------------- #
+
+IMAGE_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+               ".webp": "image/webp", ".heic": "image/heic"}
+VIDEO_TYPES = {".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm"}
+
+
+def _escape_pattern(path):
+    # dirname_pattern goes through str.format()
+    return path.replace("{", "{{").replace("}", "}}")
+
+
+def collect_media(directory):
+    """Media files Instaloader left in ``directory``; anything else (json, txt, ...) is ignored."""
+    media = []
+    for root, _dirs, files in os.walk(directory):
+        for name in sorted(files):
+            ext = os.path.splitext(name)[1].lower()
+            if ext in IMAGE_TYPES:
+                kind, mime = "image", IMAGE_TYPES[ext]
+            elif ext in VIDEO_TYPES:
+                kind, mime = "video", VIDEO_TYPES[ext]
+            else:
+                continue
+            media.append({"path": os.path.join(root, name), "name": name, "kind": kind, "mime": mime})
+    return media
+
+
+@_envelope
+def download_post(shortcode, target_dir):
+    """Download one post/reel into ``target_dir``.
+
+    Returns {"shortcode", "owner", "files": [{"path", "name", "kind", "mime"}]}.
+    """
+    loader = _require_loader()
+    os.makedirs(target_dir, exist_ok=True)
+    loader.dirname_pattern = _escape_pattern(os.path.abspath(target_dir))
+    loader.filename_pattern = "{shortcode}"
+
+    post = instaloader.Post.from_shortcode(loader.context, shortcode)
+    loader.download_post(post, target=shortcode)
+
+    files = collect_media(target_dir)
+    if not files:
+        raise BridgeError(ErrorCode.UNKNOWN, "post downloaded but no media files were written")
+    try:
+        owner = post.owner_username  # informational only; never fail a finished download on it
+    except Exception:  # noqa: BLE001
+        owner = None
+    return {"shortcode": shortcode, "owner": owner, "files": files}
 
 
 def version():

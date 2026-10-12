@@ -1,9 +1,13 @@
 package com.yzinsta.downloader.data.python
 
+import com.yzinsta.downloader.data.download.DownloadedPost
+import com.yzinsta.downloader.data.download.MediaFile
+import com.yzinsta.downloader.data.download.MediaKind
 import com.yzinsta.downloader.domain.AppError
 import com.yzinsta.downloader.domain.Outcome
 import org.json.JSONException
 import org.json.JSONObject
+import java.io.File
 
 /**
  * Decodes the JSON envelope returned by every function in `igbridge.py`:
@@ -27,6 +31,25 @@ object BridgeEnvelope {
         val error = json.optJSONObject("error")
         return Outcome.Failure(
             errorFor(error?.optString("code").orEmpty(), error?.optString("detail"))
+        )
+    }
+
+    /** Parses the `data` of `download_post`. */
+    fun downloadedPost(json: JSONObject): DownloadedPost {
+        val data = json.getJSONObject("data")
+        val files = data.getJSONArray("files")
+        return DownloadedPost(
+            shortcode = data.getString("shortcode"),
+            owner = data.optString("owner").takeIf { it.isNotEmpty() && !data.isNull("owner") },
+            files = List(files.length()) { i ->
+                val f = files.getJSONObject(i)
+                MediaFile(
+                    file = File(f.getString("path")),
+                    displayName = f.getString("name"),
+                    kind = if (f.getString("kind") == "video") MediaKind.VIDEO else MediaKind.IMAGE,
+                    mimeType = f.getString("mime"),
+                )
+            },
         )
     }
 

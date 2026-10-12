@@ -4,6 +4,7 @@ import android.content.Context
 import com.chaquo.python.PyException
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
+import com.yzinsta.downloader.data.download.DownloadedPost
 import com.yzinsta.downloader.data.session.InstagramCookies
 import com.yzinsta.downloader.domain.AppError
 import com.yzinsta.downloader.domain.Outcome
@@ -12,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
  * [InstaloaderBridge] backed by `igbridge.py` running in Chaquopy.
@@ -56,6 +58,9 @@ class ChaquopyBridge(
     override suspend fun clearSession() {
         call("clear_session")
     }
+
+    override suspend fun downloadPost(shortcode: String, targetDir: File): Outcome<DownloadedPost> =
+        BridgeEnvelope.decode(call("download_post", shortcode, targetDir.absolutePath), BridgeEnvelope::downloadedPost)
 
     override suspend fun instaloaderVersion(): String = lock.withLock {
         withContext(io) { module().callAttr("version").toString() }

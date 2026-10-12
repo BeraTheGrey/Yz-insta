@@ -25,6 +25,8 @@ class SessionRepositoryTest {
         override suspend fun verifySession() = verifyResult
         override suspend fun clearSession() { cleared++ }
         override suspend fun instaloaderVersion() = "test"
+        override suspend fun downloadPost(shortcode: String, targetDir: java.io.File) =
+            throw UnsupportedOperationException()
     }
 
     private class FakeStore(var stored: StoredSession? = null) : SessionStore {

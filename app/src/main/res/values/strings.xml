@@ -10,7 +10,6 @@
     <string name="logged_in_unverified">Logged in (not verified)</string>
     <string name="logout">Log out</string>
     <string name="retry">Retry</string>
-    <string name="download_coming_soon">Downloading comes in the next step.</string>
 
     <string name="error_detail">Details: %1$s</string>
     <string name="error_not_logged_in">You are not logged in.</string>
@@ -24,4 +23,16 @@
     <string name="error_invalid_cookies">Login could not be completed (Instagram session cookies missing). Please log in again.</string>
     <string name="error_storage">Could not save the file to your gallery.</string>
     <string name="error_unknown">Something went wrong.</string>
+    <string name="share_target_label">Download with YzInsta</string>
+    <string name="link_label">Post or reel link</string>
+    <string name="paste">Paste</string>
+    <string name="download">Download</string>
+    <string name="download_hint">Paste a link, or share a post from Instagram to YzInsta.</string>
+    <string name="stage_fetching">Fetching post from Instagram…</string>
+    <string name="stage_saving">Saving to gallery (%1$d/%2$d)…</string>
+    <plurals name="download_done">
+        <item quantity="one">%d file saved.</item>
+        <item quantity="other">%d files saved.</item>
+    </plurals>
+    <string name="download_done_where">Photos: Pictures/InstaloaderApp · Videos: Movies/InstaloaderApp</string>
 </resources>

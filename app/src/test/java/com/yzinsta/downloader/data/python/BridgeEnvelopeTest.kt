@@ -57,4 +57,20 @@ class BridgeEnvelopeTest {
         assertTrue(!AppError.Network.requiresLogin)
         assertTrue(!AppError.RateLimited.requiresLogin)
     }
+
+    @Test
+    fun `download_post data`() {
+        val raw = """{"ok":true,"data":{"shortcode":"ABC","owner":null,"files":[
+            {"path":"/c/ABC_1.jpg","name":"ABC_1.jpg","kind":"image","mime":"image/jpeg"},
+            {"path":"/c/ABC_2.mp4","name":"ABC_2.mp4","kind":"video","mime":"video/mp4"}]}}"""
+        val post = (BridgeEnvelope.decode(raw, BridgeEnvelope::downloadedPost) as Outcome.Success).value
+        assertEquals("ABC", post.shortcode)
+        assertEquals(null, post.owner)
+        assertEquals(listOf("ABC_1.jpg", "ABC_2.mp4"), post.files.map { it.displayName })
+        assertEquals(
+            listOf(com.yzinsta.downloader.data.download.MediaKind.IMAGE, com.yzinsta.downloader.data.download.MediaKind.VIDEO),
+            post.files.map { it.kind },
+        )
+        assertEquals("/c/ABC_2.mp4", post.files[1].file.path)
+    }
 }
