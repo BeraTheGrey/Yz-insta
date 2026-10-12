@@ -125,8 +125,7 @@ def download_posts(loader, posts, out_dir, tz, debug):
     done = 0
     for post in posts:
         def one(p=post):
-            sub = os.path.join(out_dir, p.shortcode)
-            return igbridge._download_items(loader, [p], sub, "post", tz, None)
+            return igbridge._download_items(loader, [p], out_dir, "post", tz, None)
         files = step("download %s (%s)" % (post.shortcode, post.date_utc.strftime("%Y-%m-%d")), one, debug)
         for f in files:
             print("   %s" % f["name"])
@@ -173,8 +172,7 @@ def run(args, meter_box):
         def one(hl=h):
             with igbridge._iphone_disabled(loader):
                 items = igbridge.highlight_items(loader, hl.unique_id)
-                return igbridge._download_items(loader, items, os.path.join(out, "highlight_%s" % hl.unique_id),
-                                                "highlight", args.tz, None)
+                return igbridge._download_items(loader, items, out, "highlight", args.tz, None)
         files = step("download highlight %r" % h.title, one, args.debug)
         print("   %d files" % len(files))
         downloaded += 1

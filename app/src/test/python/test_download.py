@@ -62,10 +62,10 @@ def test_loader_writes_no_side_files(session):
 
 def test_media_name_uses_owner_and_local_time():
     date = datetime.datetime(2026, 10, 12, 18, 30, 5)
-    assert igbridge.media_name("zeynep", date, "ABC", "_2", ".JPG", "Europe/Istanbul") == \
-        "zeynep_2026-10-12_21-30-05_ABC_2.jpg"
-    assert igbridge.media_name(None, date, "story", "", ".mp4", "No/Such_Zone") == \
-        "instagram_2026-10-12_18-30-05_story.mp4"
+    assert igbridge.media_name("zeynep", date, "_2", ".JPG", "Europe/Istanbul") == \
+        "zeynep_2026-10-12_21-30-05_2.jpg"
+    assert igbridge.media_name(None, date, "", ".mp4", "No/Such_Zone") == \
+        "instagram_2026-10-12_18-30-05.mp4"
 
 
 def test_download_post_names_and_filters(monkeypatch, tmp_path):
@@ -78,11 +78,14 @@ def test_download_post_names_and_filters(monkeypatch, tmp_path):
     data = result["data"]
     assert (data["id"], data["owner"]) == ("ABC", "someone")
     assert [(f["name"], f["kind"], f["mime"]) for f in data["files"]] == [
-        ("someone_2026-10-12_21-30-05_ABC_1.jpg", "image", "image/jpeg"),
-        ("someone_2026-10-12_21-30-05_ABC_2.mp4", "video", "video/mp4"),
-        ("someone_2026-10-12_21-30-05_ABC_3.webp", "image", "image/webp"),
+        ("someone_2026-10-12_21-30-05_1.jpg", "image", "image/jpeg"),
+        ("someone_2026-10-12_21-30-05_2.mp4", "video", "video/mp4"),
+        ("someone_2026-10-12_21-30-05_3.webp", "image", "image/webp"),
     ]
-    assert all(os.path.isfile(f["path"]) for f in data["files"])
+    # renamed on disk, flat in the target dir, nothing else left behind
+    target = tmp_path / "dir{with}braces"
+    assert sorted(os.listdir(target)) == sorted(f["name"] for f in data["files"])
+    assert all(f["path"] == str(target / f["name"]) for f in data["files"])
     assert progress.calls == [(0, 1), (1, 1)]
 
 
@@ -150,7 +153,7 @@ def test_download_one_story(monkeypatch, tmp_path, session):
     monkeypatch.setattr(instaloader.Instaloader, "download_storyitem", fake_storyitem_download(seen_iphone))
     result = json.loads(igbridge.download_story("zeynep", "222", str(tmp_path), "UTC"))
     assert result["ok"] is True, result
-    assert [f["name"] for f in result["data"]["files"]] == ["zeynep_2026-10-11_19-39-00_story.mp4"]
+    assert [f["name"] for f in result["data"]["files"]] == ["zeynep_2026-10-11_19-39-00.mp4"]
     assert seen_iphone == [False]  # broken iPhone lookups are skipped for stories...
     assert session.context.iphone_support is True  # ...and re-enabled afterwards
 
@@ -162,7 +165,10 @@ def test_download_all_current_stories(monkeypatch, tmp_path):
     monkeypatch.setattr(instaloader.Instaloader, "download_storyitem", fake_storyitem_download([]))
     progress = Progress()
     result = json.loads(igbridge.download_story("zeynep", None, str(tmp_path), "UTC", progress))
-    assert len(result["data"]["files"]) == 2
+    # same second -> second file gets " (2)"; still one flat folder
+    assert [f["name"] for f in result["data"]["files"]] == [
+        "zeynep_2026-10-11_19-39-00.jpg", "zeynep_2026-10-11_19-39-00.mp4"]
+    assert sorted(os.listdir(tmp_path)) == ["zeynep_2026-10-11_19-39-00.jpg", "zeynep_2026-10-11_19-39-00.mp4"]
     assert progress.calls == [(0, 2), (1, 2), (2, 2)]
 
 
@@ -185,9 +191,21 @@ def test_download_highlight_by_id_only(monkeypatch, tmp_path, session):
     result = json.loads(igbridge.download_highlight("17973718328923841", str(tmp_path), "UTC"))
     assert result["ok"] is True, result
     assert [f["name"] for f in result["data"]["files"]] == [
-        "instagram_2026-10-11_19-39-00_highlight.jpg",  # owner unknown in the item node -> fallback name
-        "instagram_2026-10-11_19-39-00_highlight.mp4",
+        "instagram_2026-10-11_19-39-00.jpg",  # owner unknown in the item node -> fallback name
+        "instagram_2026-10-11_19-39-00.mp4",
     ]
+
+
+def test_same_second_files_do_not_overwrite(monkeypatch, tmp_path):
+    def fake_fetch(self):
+        self._items = [{"id": "1"}, {"id": "2"}, {"id": "3"}]
+    monkeypatch.setattr(instaloader.Highlight, "_fetch_items", fake_fetch)
+    monkeypatch.setattr(instaloader, "StoryItem", lambda ctx, node: FakeStoryItem(int(node["id"]), False))
+    monkeypatch.setattr(instaloader.Instaloader, "download_storyitem", fake_storyitem_download([]))
+    result = json.loads(igbridge.download_highlight("9", str(tmp_path), "UTC"))
+    assert [f["name"] for f in result["data"]["files"]] == [
+        "zeynep_2026-10-11_19-39-00.jpg", "zeynep_2026-10-11_19-39-00 (2).jpg", "zeynep_2026-10-11_19-39-00 (3).jpg"]
+    assert len(os.listdir(tmp_path)) == 3
 
 
 def test_missing_highlight(monkeypatch, tmp_path):

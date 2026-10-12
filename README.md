@@ -13,10 +13,11 @@ Desteklenen bağlantılar:
 | `instagram.com/stories/<kullanıcı>/<id>` | O hikâye (aktif olmalı, 24 saat) |
 | `instagram.com/stories/highlights/<id>` ve Instagram'ın paylaştığı `instagram.com/s/…` öne çıkan bağlantıları | Öne çıkanın tamamı |
 
-Galeriye kaydedilen dosyalar `kullanıcı_YYYY-AA-GG_SS-DD-ss_<etiket>.<uzantı>` biçiminde
-adlandırılır; tarih paylaşım zamanıdır, telefonun saat diliminde. Etiket gönderilerde kısa
-koddur (kaydırmalı gönderide `_1`, `_2` eklenir), hikâyelerde `story`, öne çıkanlarda `highlight`.
-Örnek: `zeynep_2026-10-11_22-39-00_story.mp4`.
+Dosyalar `kullanıcı_YYYY-AA-GG_SS-DD-ss.<uzantı>` biçiminde adlandırılır; tarih paylaşım
+zamanıdır, telefonun saat diliminde. Kaydırmalı gönderilerde sona `_1`, `_2`… eklenir;
+aynı saniyeye denk gelen dosyalar `… (2)` olur. Örnek: `zeynep_2026-10-11_22-39-00.mp4`,
+`zeynep_2026-10-04_11-20-50_1.webp`. Masaüstü betikleri de aynı adları kullanır ve
+dosyaları tek klasöre, alt klasör açmadan koyar.
 
 - Kotlin + Jetpack Compose (Material 3), tek Activity, MVVM (ViewModel + coroutines)
 - Python tarafı: [Chaquopy](https://chaquo.com/chaquopy/) 17.1 + Python 3.13 + Instaloader

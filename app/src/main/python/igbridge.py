@@ -13,6 +13,7 @@ Kotlin. Keep both in sync.
 import json
 import os
 import re
+import shutil
 import sys
 import time
 from contextlib import contextmanager
@@ -300,14 +301,25 @@ def _zone(tz_name):
     return timezone.utc
 
 
-def media_name(owner, date_utc, tag, suffix, ext, tz_name=None):
-    """Gallery file name: ``<owner>_<YYYY-MM-DD_HH-MM-SS>_<tag><suffix><ext>`` in local time.
+def media_name(owner, date_utc, suffix, ext, tz_name=None):
+    """File name ``<owner>_<YYYY-MM-DD_HH-MM-SS><suffix><ext>`` with the post time in local time.
 
-    ``date_utc`` is Instaloader's naive UTC datetime of the post/story.
+    ``date_utc`` is Instaloader's naive UTC datetime of the post/story; ``suffix`` is
+    "_1", "_2", ... for carousel items and empty otherwise.
     """
     stamp = date_utc.replace(tzinfo=timezone.utc).astimezone(_zone(tz_name)).strftime("%Y-%m-%d_%H-%M-%S")
     owner = re.sub(r"[^A-Za-z0-9._-]", "_", owner or "instagram")
-    return "%s_%s_%s%s%s" % (owner, stamp, tag, suffix, ext.lower())
+    return "%s_%s%s%s" % (owner, stamp, suffix, ext.lower())
+
+
+def _unique_path(directory, name):
+    """``directory/name``, or ``name (2)``, ``name (3)``... if taken (same second)."""
+    base, ext = os.path.splitext(name)
+    candidate, n = os.path.join(directory, name), 2
+    while os.path.exists(candidate):
+        candidate = os.path.join(directory, "%s (%d)%s" % (base, n, ext))
+        n += 1
+    return candidate
 
 
 def _owner_of(item):
@@ -341,37 +353,48 @@ def _report(listener, done, total):
 
 
 def _download_items(loader, items, target_dir, kind, tz_name, listener):
-    """Download Posts or StoryItems one by one, each into its own sub-directory, and
-    return media dicts with gallery names. ``kind`` is "post" or "story"/"highlight"."""
+    """Download Posts or StoryItems one by one and leave only renamed media files,
+    flat in ``target_dir``. Returns media dicts. ``kind`` is "post", "story" or "highlight".
+
+    Each item first goes into its own scratch directory so its files can be told
+    apart; they are then moved up under their final names and the scratch is removed.
+    """
+    target_dir = os.path.abspath(target_dir)
+    scratch_root = os.path.join(target_dir, ".instaloader-tmp")
     loader.filename_pattern = "{shortcode}" if kind == "post" else "{mediaid}"
     files = []
     total = len(items)
     _report(listener, 0, total)
-    for index, item in enumerate(items):
-        item_dir = os.path.join(os.path.abspath(target_dir), str(index))
-        os.makedirs(item_dir, exist_ok=True)
-        loader.dirname_pattern = _escape_pattern(item_dir)
-        if kind == "post":
-            loader.download_post(item, target=item.shortcode)
-            stem, tag = item.shortcode, item.shortcode
-        else:
-            loader.download_storyitem(item, target=kind)
-            stem, tag = str(item.mediaid), kind
-        owner = _owner_of(item)
-        for media in collect_media(item_dir):
-            base, ext = os.path.splitext(media["name"])
-            suffix = base[len(stem):] if base.startswith(stem) else ""  # "_1", "_2" for carousels
-            media["name"] = media_name(owner, item.date_utc, tag, suffix, ext, tz_name)
-            files.append(media)
-        _report(listener, index + 1, total)
+    try:
+        for index, item in enumerate(items):
+            scratch = os.path.join(scratch_root, str(index))
+            os.makedirs(scratch, exist_ok=True)
+            loader.dirname_pattern = _escape_pattern(scratch)
+            if kind == "post":
+                loader.download_post(item, target=item.shortcode)
+                stem = item.shortcode
+            else:
+                loader.download_storyitem(item, target=kind)
+                stem = str(item.mediaid)
+            owner = _owner_of(item)
+            for media in collect_media(scratch):
+                base, ext = os.path.splitext(media["name"])
+                suffix = base[len(stem):] if base.startswith(stem) else ""  # "_1", "_2" for carousels
+                dest = _unique_path(target_dir, media_name(owner, item.date_utc, suffix, ext, tz_name))
+                os.replace(media["path"], dest)
+                media["path"], media["name"] = dest, os.path.basename(dest)
+                files.append(media)
+            _report(listener, index + 1, total)
+    finally:
+        shutil.rmtree(scratch_root, ignore_errors=True)
     if not files:
         raise BridgeError(ErrorCode.UNKNOWN, "download finished but no media files were written")
     return files
 
 
 # --- public download functions -------------------------------------------------
-# All return {"id", "owner", "files": [{"path", "name", "kind", "mime"}]}; "name" is
-# the gallery file name, "path" the file Instaloader wrote into target_dir.
+# All return {"id", "owner", "files": [{"path", "name", "kind", "mime"}]}; files are
+# already renamed to <owner>_<date> and lie flat in target_dir.
 
 @_envelope
 def download_post(shortcode, target_dir, tz_name=None, listener=None):

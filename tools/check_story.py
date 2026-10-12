@@ -89,17 +89,17 @@ def describe(item):
     return "%s  %s  %s UTC" % (item.mediaid, kind, item.date_utc.strftime("%Y-%m-%d %H:%M"))
 
 
-def download_items(loader, items, out_dir, debug, hq=False):
-    os.makedirs(out_dir, exist_ok=True)
-    loader.dirname_pattern = igbridge._escape_pattern(os.path.abspath(out_dir))
-    loader.filename_pattern = "{owner_username}_{mediaid}"
+def download_items(loader, items, out_dir, debug, hq=False, kind="story", tz=None):
+    """Same download + naming as the app (igbridge), one step per item so failures show."""
+    files = []
     for item in items:
         if hq:
             got = igbridge.prefetch_story_hq(loader, item)
             print("   HQ info for %s: %s" % (item.mediaid, "yes" if got else "no (using normal quality)"))
-        step("download %s" % describe(item), lambda: loader.download_storyitem(item, target="story"), debug)
-    files = igbridge.collect_media(out_dir)
-    print("\nFiles in %s:" % out_dir)
+        got_files = step("download %s" % describe(item),
+                         lambda it=item: igbridge._download_items(loader, [it], out_dir, kind, tz, None), debug)
+        files.extend(got_files)
+    print("\nFiles in %s:" % os.path.abspath(out_dir))
     for f in files:
         print("   %s  (%s, %d KB)" % (f["name"], f["mime"], os.path.getsize(f["path"]) // 1024))
     return files
@@ -155,7 +155,8 @@ def run(args):
         return 1
     if args.limit:
         items = items[:args.limit]
-    files = download_items(loader, items, args.out, args.debug, hq=args.hq)
+    files = download_items(loader, items, args.out, args.debug, hq=args.hq,
+                           kind="highlight" if kind == "highlight" else "story", tz=args.tz)
     print("\nRESULT: %s" % ("stories downloaded fine" if files else "no media files were written"))
     return 0 if files else 1
 
@@ -167,6 +168,9 @@ def main():
     parser.add_argument("--user", help="owner username (needed for highlight links)")
     parser.add_argument("--highlights", action="store_true", help="list the user's highlights")
     parser.add_argument("--limit", type=int, default=0, help="download at most N items (0 = all)")
+    parser.add_argument("--tz", default=None,
+                        help="time zone for file names, e.g. Europe/Istanbul (default UTC; on Windows "
+                             "needs: pip install tzdata)")
     parser.add_argument("--out", default="story-test-output", help="output folder (default: %(default)s)")
     parser.add_argument("--hq", action="store_true",
                         help="experimental: fetch high-quality URLs via api/v1/media/<id>/info/")

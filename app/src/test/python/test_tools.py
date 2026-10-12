@@ -65,7 +65,7 @@ def test_story_flow_offline(monkeypatch, tmp_path, capsys):
 
     def fake_download(self, item, target):
         directory = self.dirname_pattern.replace("{{", "{").replace("}}", "}")
-        name = "someone_%d.%s" % (item.mediaid, "mp4" if item.is_video else "jpg")
+        name = "%d.%s" % (item.mediaid, "mp4" if item.is_video else "jpg")
         with open(os.path.join(directory, name), "wb") as fh:
             fh.write(b"x")
         return True
@@ -75,7 +75,7 @@ def test_story_flow_offline(monkeypatch, tmp_path, capsys):
         "https://www.instagram.com/stories/someone/222/"])
 
     assert check_story.main() == 0
-    assert sorted(os.listdir(tmp_path)) == ["someone_222.mp4"]
+    assert sorted(os.listdir(tmp_path)) == ["someone_2026-10-12_20-00-00.mp4"]
     assert "stories downloaded fine" in capsys.readouterr().out
 
 
@@ -138,7 +138,10 @@ def test_profile_flow_offline(monkeypatch, tmp_path, capsys):
     assert check_profile.main() == 0
     assert downloaded == ["AAA", "BBB", "RRR"]  # newest 2 posts + reels not already downloaded
     out = capsys.readouterr().out
-    assert "zeynep_2026-10-01_15-00-00_AAA.jpg" in out
+    # flat folder, owner_date names; same timestamp -> (2), (3)
+    assert sorted(os.listdir(tmp_path)) == [
+        "zeynep_2026-10-01_15-00-00 (2).jpg", "zeynep_2026-10-01_15-00-00 (3).jpg", "zeynep_2026-10-01_15-00-00.jpg"]
+    assert "zeynep_2026-10-01_15-00-00.jpg" in out
     assert "requests to Instagram:" in out and "no throttling seen" in out
 
 
