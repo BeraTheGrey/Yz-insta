@@ -1,6 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">YzInsta</string>
-    <string name="python_loading">Starting Python…</string>
-    <string name="python_ready">Instaloader %1$s ready</string>
+
+    <string name="welcome_body">Log in with your Instagram account to download posts and reels. You log in on Instagram\'s own page; this app never sees your password.</string>
+    <string name="login_button">Log in with Instagram</string>
+    <string name="login_title">Instagram login</string>
+    <string name="cancel">Cancel</string>
+    <string name="logged_in_as">\@%1$s</string>
+    <string name="logged_in_unverified">Logged in (not verified)</string>
+    <string name="logout">Log out</string>
+    <string name="retry">Retry</string>
+    <string name="download_coming_soon">Downloading comes in the next step.</string>
+
+    <string name="error_detail">Details: %1$s</string>
+    <string name="error_not_logged_in">You are not logged in.</string>
+    <string name="error_session_expired">Your Instagram session has expired. Please log in again.</string>
+    <string name="error_challenge">Instagram wants to verify your account. Log in again and complete the check Instagram shows.</string>
+    <string name="error_private">This account is private or you don\'t have access to this content.</string>
+    <string name="error_not_found">Post not found. It may have been deleted, or it belongs to a private account you don\'t follow.</string>
+    <string name="error_rate_limited">Instagram is limiting requests right now. Please wait a few minutes and try again.</string>
+    <string name="error_network">Network error. Check your internet connection and try again.</string>
+    <string name="error_invalid_link">This doesn\'t look like an Instagram post or reel link.</string>
+    <string name="error_invalid_cookies">Login could not be completed (Instagram session cookies missing). Please log in again.</string>
+    <string name="error_storage">Could not save the file to your gallery.</string>
+    <string name="error_unknown">Something went wrong.</string>
 </resources>

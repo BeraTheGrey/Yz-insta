@@ -1,5 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="python_loading">Python başlatılıyor…</string>
-    <string name="python_ready">Instaloader %1$s hazır</string>
+    <string name="welcome_body">Gönderi ve reel indirmek için Instagram hesabınla giriş yap. Girişi Instagram\'ın kendi sayfasında yaparsın; bu uygulama şifreni hiçbir zaman görmez.</string>
+    <string name="login_button">Instagram ile giriş yap</string>
+    <string name="login_title">Instagram girişi</string>
+    <string name="cancel">İptal</string>
+    <string name="logged_in_unverified">Giriş yapıldı (doğrulanmadı)</string>
+    <string name="logout">Çıkış yap</string>
+    <string name="retry">Tekrar dene</string>
+    <string name="download_coming_soon">İndirme bir sonraki adımda geliyor.</string>
+
+    <string name="error_detail">Ayrıntı: %1$s</string>
+    <string name="error_not_logged_in">Giriş yapılmamış.</string>
+    <string name="error_session_expired">Instagram oturumunun süresi dolmuş. Lütfen yeniden giriş yap.</string>
+    <string name="error_challenge">Instagram hesabını doğrulamak istiyor. Yeniden giriş yap ve Instagram\'ın gösterdiği doğrulamayı tamamla.</string>
+    <string name="error_private">Bu hesap gizli ya da bu içeriğe erişimin yok.</string>
+    <string name="error_not_found">Gönderi bulunamadı. Silinmiş olabilir ya da takip etmediğin gizli bir hesaba ait olabilir.</string>
+    <string name="error_rate_limited">Instagram şu anda istekleri sınırlıyor. Lütfen birkaç dakika bekleyip tekrar dene.</string>
+    <string name="error_network">Ağ hatası. İnternet bağlantını kontrol edip tekrar dene.</string>
+    <string name="error_invalid_link">Bu bir Instagram gönderi veya reel bağlantısına benzemiyor.</string>
+    <string name="error_invalid_cookies">Giriş tamamlanamadı (Instagram oturum çerezleri eksik). Lütfen yeniden giriş yap.</string>
+    <string name="error_storage">Dosya galeriye kaydedilemedi.</string>
+    <string name="error_unknown">Bir şeyler ters gitti.</string>
 </resources>
