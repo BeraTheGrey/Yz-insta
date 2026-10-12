@@ -48,6 +48,7 @@ DownloadRepository: cache/downloads/<kod>/ → MediaStore
 | `data/download/` | `ShortcodeParser`, `DownloadRepository`, `MediaStoreExporter` |
 | `ui/` | `LoginScreen` (WebView), `WelcomeScreen`, `HomeScreen`, `DownloadSection`, ViewModel'ler |
 | `tools/check_cookies.py` | Çerez aktarımını telefonsuz, gerçek Instagram'a karşı test eden araç |
+| `tools/check_story.py` | Hikâye/öne çıkan indirmeyi uygulamaya eklemeden önce Instaloader ile deneyen araç |
 
 ## Kurulum ve derleme
 
@@ -86,12 +87,34 @@ Projenin en kırılgan yeri burası. İki yoldan test edilebilir:
 2. **Gerçek Instagram'a karşı:** Tarayıcıda instagram.com'a giriş yapın; geliştirici
    araçlarından çerezleri bir JSON dosyasına kopyalayın, sonra:
    ```bash
-   python3 tools/check_cookies.py cookies.json
+   python3 tools/check_cookies.py --cookies cookies.json
    # veya
    python3 tools/check_cookies.py --header "csrftoken=…; sessionid=…; ds_user_id=…"
+   # veya yalnızca sessionid (uygulamadaki çerezle girişle aynı kurallar)
+   python3 tools/check_cookies.py --sessionid "…"
    ```
    Bu araç, uygulamanın kullandığı `igbridge.py` kodunun aynısını çalıştırır. Dosya canlı
    bir oturum içerir; işiniz bitince silin.
+
+### Hikâye indirmeyi deneme
+
+Hikâye desteği henüz uygulamada yok. Instaloader'ın hikâye fonksiyonları eski GraphQL
+sorgularını kullandığı için bugün çalışıp çalışmadığı belirsiz. Önce bilgisayarda deneyin:
+
+```bash
+pip install "instaloader==4.15.4"
+# tek hikâye (hikâyede Paylaş → Bağlantıyı kopyala)
+python3 tools/check_story.py --sessionid "…" https://www.instagram.com/stories/KULLANICI/1234567890123456789/
+# kullanıcının tüm aktif hikâyeleri
+python3 tools/check_story.py --sessionid "…" KULLANICI
+# öne çıkanları listele, sonra birini indir
+python3 tools/check_story.py --sessionid "…" KULLANICI --highlights
+python3 tools/check_story.py --sessionid "…" https://www.instagram.com/stories/highlights/1791234…/ --user KULLANICI
+```
+
+Betik her adımı ayrı yazdırır (çerez yükleme, oturum doğrulama, profil, hikâyeler,
+indirme). Bir adım başarısız olursa hata kodunu (`RATE_LIMITED`, `SESSION_EXPIRED`, …)
+gösterir. Dosyalar `story-test-output/` klasörüne iner. `--debug` tam hata çıktısını verir.
 
 ### Instaloader'ı güncelleme
 
