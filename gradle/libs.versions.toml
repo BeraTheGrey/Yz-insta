@@ -6,6 +6,8 @@ chaquopy = "17.1.0"
 python = "3.13"
 # Single place to bump Instaloader. See README "Instaloader'ı güncelleme".
 instaloader = "4.15.4"
+# IANA time zones for file names (Android's tz database isn't visible to Python's zoneinfo).
+tzdata = "2026.5"
 coreKtx = "1.16.0"
 activityCompose = "1.10.1"
 lifecycle = "2.9.2"

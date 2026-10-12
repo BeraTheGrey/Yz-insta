@@ -1,5 +1,6 @@
 """Download wrapper tests: no network, Instaloader's Post and download are faked."""
 
+import datetime
 import json
 import os
 
@@ -21,23 +22,34 @@ def session():
 
 
 class FakePost:
-    owner_username = "someone"
-
-    def __init__(self, shortcode):
+    def __init__(self, shortcode, owner="someone"):
         self.shortcode = shortcode
+        self.date_utc = datetime.datetime(2026, 10, 12, 18, 30, 5)  # naive UTC, like Instaloader
+        self._node = {"owner": {"username": owner}}
+
+
+def unescape(pattern):
+    return pattern.replace("{{", "{").replace("}}", "}")
 
 
 def fake_download(written):
     """Replace Instaloader.download_post with one that writes the given file names."""
     def download_post(self, post, target):
-        directory = self.dirname_pattern.replace("{{", "{").replace("}}", "}")
         assert target == post.shortcode
         assert self.filename_pattern == "{shortcode}"
         for name in written:
-            with open(os.path.join(directory, name), "wb") as fh:
+            with open(os.path.join(unescape(self.dirname_pattern), name), "wb") as fh:
                 fh.write(b"x")
         return True
     return download_post
+
+
+class Progress:
+    def __init__(self):
+        self.calls = []
+
+    def onProgress(self, done, total):  # noqa: N802 - same name as the Kotlin interface
+        self.calls.append((done, total))
 
 
 def test_loader_writes_no_side_files(session):
@@ -48,22 +60,30 @@ def test_loader_writes_no_side_files(session):
     assert session.post_metadata_txt_pattern == ""
 
 
-def test_download_returns_only_media(monkeypatch, tmp_path):
+def test_media_name_uses_owner_and_local_time():
+    date = datetime.datetime(2026, 10, 12, 18, 30, 5)
+    assert igbridge.media_name("zeynep", date, "ABC", "_2", ".JPG", "Europe/Istanbul") == \
+        "zeynep_2026-10-12_21-30-05_ABC_2.jpg"
+    assert igbridge.media_name(None, date, "story", "", ".mp4", "No/Such_Zone") == \
+        "instagram_2026-10-12_18-30-05_story.mp4"
+
+
+def test_download_post_names_and_filters(monkeypatch, tmp_path):
     monkeypatch.setattr(instaloader.Post, "from_shortcode", staticmethod(lambda ctx, sc: FakePost(sc)))
     monkeypatch.setattr(instaloader.Instaloader, "download_post",
                         fake_download(["ABC_1.jpg", "ABC_2.mp4", "ABC.json", "ABC.txt", "ABC_3.webp"]))
-    target = tmp_path / "dir{with}braces"
-    result = json.loads(igbridge.download_post("ABC", str(target)))
-    assert result["ok"] is True
+    progress = Progress()
+    result = json.loads(igbridge.download_post("ABC", str(tmp_path / "dir{with}braces"), "Europe/Istanbul", progress))
+    assert result["ok"] is True, result
     data = result["data"]
-    assert data["shortcode"] == "ABC"
-    assert data["owner"] == "someone"
+    assert (data["id"], data["owner"]) == ("ABC", "someone")
     assert [(f["name"], f["kind"], f["mime"]) for f in data["files"]] == [
-        ("ABC_1.jpg", "image", "image/jpeg"),
-        ("ABC_2.mp4", "video", "video/mp4"),
-        ("ABC_3.webp", "image", "image/webp"),
+        ("someone_2026-10-12_21-30-05_ABC_1.jpg", "image", "image/jpeg"),
+        ("someone_2026-10-12_21-30-05_ABC_2.mp4", "video", "video/mp4"),
+        ("someone_2026-10-12_21-30-05_ABC_3.webp", "image", "image/webp"),
     ]
     assert all(os.path.isfile(f["path"]) for f in data["files"])
+    assert progress.calls == [(0, 1), (1, 1)]
 
 
 def test_download_with_nothing_written(monkeypatch, tmp_path):
@@ -88,6 +108,93 @@ def test_download_errors_are_classified(monkeypatch, tmp_path, exc, code):
 def test_download_requires_session(tmp_path):
     igbridge._loader = None
     assert json.loads(igbridge.download_post("ABC", str(tmp_path)))["error"]["code"] == "NOT_LOGGED_IN"
+
+
+# --- stories & highlights ----------------------------------------------------
+
+class FakeStoryItem:
+    def __init__(self, mediaid, is_video, owner="zeynep"):
+        self.mediaid, self.is_video = mediaid, is_video
+        self.date_utc = datetime.datetime(2026, 10, 11, 19, 39, 0)
+        self._node = {"owner": {"username": owner}} if owner else {}
+
+
+def fake_storyitem_download(seen_iphone):
+    def download_storyitem(self, item, target):
+        seen_iphone.append(self.context.iphone_support)
+        assert self.filename_pattern == "{mediaid}"
+        name = "%d.%s" % (item.mediaid, "mp4" if item.is_video else "jpg")
+        with open(os.path.join(unescape(self.dirname_pattern), name), "wb") as fh:
+            fh.write(b"x")
+        return True
+    return download_storyitem
+
+
+class FakeProfile:
+    userid, username = 42, "zeynep"
+
+
+class FakeStory:
+    def __init__(self, items):
+        self.items = items
+
+    def get_items(self):
+        return iter(self.items)
+
+
+def test_download_one_story(monkeypatch, tmp_path, session):
+    items = [FakeStoryItem(111, False), FakeStoryItem(222, True)]
+    seen_iphone = []
+    monkeypatch.setattr(instaloader.Profile, "from_username", staticmethod(lambda ctx, name: FakeProfile()))
+    monkeypatch.setattr(instaloader.Instaloader, "get_stories", lambda self, userids: [FakeStory(items)])
+    monkeypatch.setattr(instaloader.Instaloader, "download_storyitem", fake_storyitem_download(seen_iphone))
+    result = json.loads(igbridge.download_story("zeynep", "222", str(tmp_path), "UTC"))
+    assert result["ok"] is True, result
+    assert [f["name"] for f in result["data"]["files"]] == ["zeynep_2026-10-11_19-39-00_story.mp4"]
+    assert seen_iphone == [False]  # broken iPhone lookups are skipped for stories...
+    assert session.context.iphone_support is True  # ...and re-enabled afterwards
+
+
+def test_download_all_current_stories(monkeypatch, tmp_path):
+    items = [FakeStoryItem(111, False), FakeStoryItem(222, True)]
+    monkeypatch.setattr(instaloader.Profile, "from_username", staticmethod(lambda ctx, name: FakeProfile()))
+    monkeypatch.setattr(instaloader.Instaloader, "get_stories", lambda self, userids: [FakeStory(items)])
+    monkeypatch.setattr(instaloader.Instaloader, "download_storyitem", fake_storyitem_download([]))
+    progress = Progress()
+    result = json.loads(igbridge.download_story("zeynep", None, str(tmp_path), "UTC", progress))
+    assert len(result["data"]["files"]) == 2
+    assert progress.calls == [(0, 2), (1, 2), (2, 2)]
+
+
+def test_expired_story(monkeypatch, tmp_path):
+    monkeypatch.setattr(instaloader.Profile, "from_username", staticmethod(lambda ctx, name: FakeProfile()))
+    monkeypatch.setattr(instaloader.Instaloader, "get_stories", lambda self, userids: [FakeStory([])])
+    assert json.loads(igbridge.download_story("zeynep", "999", str(tmp_path)))["error"]["code"] == "NOT_FOUND"
+
+
+def test_download_highlight_by_id_only(monkeypatch, tmp_path, session):
+    nodes = [{"id": "1"}, {"id": "2"}]
+
+    def fake_fetch(self):
+        assert self.unique_id == 17973718328923841
+        self._items = nodes
+    monkeypatch.setattr(instaloader.Highlight, "_fetch_items", fake_fetch)
+    monkeypatch.setattr(instaloader, "StoryItem",
+                        lambda ctx, node: FakeStoryItem(int(node["id"]), node["id"] == "2", owner=None))
+    monkeypatch.setattr(instaloader.Instaloader, "download_storyitem", fake_storyitem_download([]))
+    result = json.loads(igbridge.download_highlight("17973718328923841", str(tmp_path), "UTC"))
+    assert result["ok"] is True, result
+    assert [f["name"] for f in result["data"]["files"]] == [
+        "instagram_2026-10-11_19-39-00_highlight.jpg",  # owner unknown in the item node -> fallback name
+        "instagram_2026-10-11_19-39-00_highlight.mp4",
+    ]
+
+
+def test_missing_highlight(monkeypatch, tmp_path):
+    def empty(self):
+        raise IndexError("list index out of range")
+    monkeypatch.setattr(instaloader.Highlight, "_fetch_items", empty)
+    assert json.loads(igbridge.download_highlight("1", str(tmp_path)))["error"]["code"] == "NOT_FOUND"
 
 
 class FakeReel:
@@ -120,7 +227,7 @@ def test_story_items_normal_path(session):
     assert reel.calls == 1
 
 
-class FakeStoryItem:
+class HqItem:
     mediaid = 4005791587892109102
 
     def __init__(self):
@@ -134,7 +241,7 @@ def test_prefetch_story_hq_attaches_media_info(session, monkeypatch):
         seen.append(path)
         return {"items": [{"pk": 1, "video_versions": [{"url": "https://hq"}]}]}
     monkeypatch.setattr(session.context, "get_iphone_json", fake_iphone_json)
-    item = FakeStoryItem()
+    item = HqItem()
     assert igbridge.prefetch_story_hq(session, item) is True
     assert seen == ["api/v1/media/4005791587892109102/info/"]
     assert item._iphone_struct_["video_versions"][0]["url"] == "https://hq"
@@ -143,7 +250,7 @@ def test_prefetch_story_hq_attaches_media_info(session, monkeypatch):
 @pytest.mark.parametrize("reply", [{}, {"items": []}, {"items": [{"pk": 1}]}, None])
 def test_prefetch_story_hq_falls_back(session, monkeypatch, reply):
     monkeypatch.setattr(session.context, "get_iphone_json", lambda path, params: reply)
-    item = FakeStoryItem()
+    item = HqItem()
     assert igbridge.prefetch_story_hq(session, item) is False
     assert item._iphone_struct_ is None
 
@@ -152,4 +259,4 @@ def test_prefetch_story_hq_network_error(session, monkeypatch):
     def boom(path, params):
         raise ie.ConnectionException("nope")
     monkeypatch.setattr(session.context, "get_iphone_json", boom)
-    assert igbridge.prefetch_story_hq(session, FakeStoryItem()) is False
+    assert igbridge.prefetch_story_hq(session, HqItem()) is False

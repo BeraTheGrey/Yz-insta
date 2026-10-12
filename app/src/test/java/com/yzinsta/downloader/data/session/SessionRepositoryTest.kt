@@ -25,8 +25,11 @@ class SessionRepositoryTest {
         override suspend fun verifySession() = verifyResult
         override suspend fun clearSession() { cleared++ }
         override suspend fun instaloaderVersion() = "test"
-        override suspend fun downloadPost(shortcode: String, targetDir: java.io.File) =
-            throw UnsupportedOperationException()
+        override suspend fun download(
+            target: com.yzinsta.downloader.data.download.InstaLink,
+            targetDir: java.io.File,
+            progress: com.yzinsta.downloader.data.python.ProgressListener,
+        ) = throw UnsupportedOperationException()
     }
 
     private class FakeStore(var stored: StoredSession? = null) : SessionStore {

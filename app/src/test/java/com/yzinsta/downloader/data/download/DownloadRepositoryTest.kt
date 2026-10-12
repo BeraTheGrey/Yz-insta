@@ -1,6 +1,7 @@
 package com.yzinsta.downloader.data.download
 
 import com.yzinsta.downloader.data.python.InstaloaderBridge
+import com.yzinsta.downloader.data.python.ProgressListener
 import com.yzinsta.downloader.data.session.InstagramCookies
 import com.yzinsta.downloader.domain.AppError
 import com.yzinsta.downloader.domain.Outcome
@@ -18,15 +19,17 @@ class DownloadRepositoryTest {
 
     @get:Rule val tmp = TemporaryFolder()
 
-    private inner class FakeBridge(val result: (String, File) -> Outcome<DownloadedPost>) : InstaloaderBridge {
-        var calledWith: String? = null
+    private class FakeBridge(
+        val result: (InstaLink, File, ProgressListener) -> Outcome<DownloadedBatch>,
+    ) : InstaloaderBridge {
+        var calledWith: InstaLink? = null
         override suspend fun loadSession(cookies: InstagramCookies) = Outcome.Success(Unit)
         override suspend fun verifySession() = Outcome.Success("alice")
         override suspend fun clearSession() {}
         override suspend fun instaloaderVersion() = "test"
-        override suspend fun downloadPost(shortcode: String, targetDir: File): Outcome<DownloadedPost> {
-            calledWith = shortcode
-            return result(shortcode, targetDir)
+        override suspend fun download(target: InstaLink, targetDir: File, progress: ProgressListener): Outcome<DownloadedBatch> {
+            calledWith = target
+            return result(target, targetDir, progress)
         }
     }
 
@@ -40,28 +43,34 @@ class DownloadRepositoryTest {
         }
     }
 
-    private fun writePost(shortcode: String, dir: File): Outcome<DownloadedPost> {
+    private fun write(dir: File, vararg names: String): List<MediaFile> {
         dir.mkdirs()
-        val files = listOf("${shortcode}_1.jpg" to MediaKind.IMAGE, "${shortcode}_2.mp4" to MediaKind.VIDEO)
-            .map { (name, kind) ->
-                MediaFile(File(dir, name).apply { writeText("x") }, name, kind,
-                    if (kind == MediaKind.IMAGE) "image/jpeg" else "video/mp4")
-            }
-        return Outcome.Success(DownloadedPost(shortcode, "bob", files))
+        return names.map { name ->
+            val video = name.endsWith(".mp4")
+            MediaFile(File(dir, name).apply { writeText("x") }, "bob_2026-10-12_21-30-05_$name",
+                if (video) MediaKind.VIDEO else MediaKind.IMAGE, if (video) "video/mp4" else "image/jpeg")
+        }
+    }
+
+    private fun post(target: InstaLink, dir: File, progress: ProgressListener): Outcome<DownloadedBatch> {
+        progress.onProgress(0, 1)
+        progress.onProgress(1, 1)
+        return Outcome.Success(DownloadedBatch("ABCDEFG", "bob", write(dir, "1.jpg", "2.mp4")))
     }
 
     @Test
-    fun `downloads, exports everything and cleans the cache`() = runTest {
-        val bridge = FakeBridge(::writePost)
+    fun `post is downloaded, exported with gallery names and the cache cleaned`() = runTest {
+        val bridge = FakeBridge(::post)
         val exporter = FakeExporter()
-        val repo = DownloadRepository(bridge, exporter, tmp.root)
         val stages = mutableListOf<DownloadStage>()
 
-        val result = repo.downloadPost("https://www.instagram.com/p/ABCDEFG/?igsh=x") { stages += it }
+        val result = DownloadRepository(bridge, exporter, tmp.root)
+            .download("https://www.instagram.com/p/ABCDEFG/?igsh=x") { stages += it }
 
         assertEquals(Outcome.Success(DownloadSummary("ABCDEFG", "bob", images = 1, videos = 1)), result)
-        assertEquals("ABCDEFG", bridge.calledWith)
-        assertEquals(listOf("ABCDEFG_1.jpg", "ABCDEFG_2.mp4"), exporter.exported)
+        assertEquals(InstaLink.Post("ABCDEFG"), bridge.calledWith)
+        assertEquals(listOf("bob_2026-10-12_21-30-05_1.jpg", "bob_2026-10-12_21-30-05_2.mp4"), exporter.exported)
+        // a single post reports no "1/1" item counter
         assertEquals(
             listOf(DownloadStage.Fetching, DownloadStage.Saving(0, 2), DownloadStage.Saving(1, 2), DownloadStage.Saving(2, 2)),
             stages,
@@ -70,25 +79,46 @@ class DownloadRepositoryTest {
     }
 
     @Test
+    fun `highlight reports per-item progress`() = runTest {
+        val bridge = FakeBridge { _, dir, progress ->
+            (0..3).forEach { progress.onProgress(it, 3) }
+            Outcome.Success(DownloadedBatch("179", "zeynep", write(dir, "a.jpg", "b.mp4", "c.mp4")))
+        }
+        val stages = mutableListOf<DownloadStage>()
+        val result = DownloadRepository(bridge, FakeExporter(), tmp.root)
+            .download("https://www.instagram.com/stories/highlights/179/") { stages += it }
+
+        assertEquals(InstaLink.Highlight("179"), bridge.calledWith)
+        assertEquals(Outcome.Success(DownloadSummary("179", "zeynep", images = 1, videos = 2)), result)
+        assertEquals((0..3).map { DownloadStage.Downloading(it, 3) }, stages.filterIsInstance<DownloadStage.Downloading>())
+    }
+
+    @Test
+    fun `story link reaches the bridge as a story`() = runTest {
+        val bridge = FakeBridge { _, dir, _ -> Outcome.Success(DownloadedBatch("1", "z", write(dir, "s.mp4"))) }
+        DownloadRepository(bridge, FakeExporter(), tmp.root).download("https://www.instagram.com/stories/z/123456/")
+        assertEquals(InstaLink.Story("z", "123456"), bridge.calledWith)
+    }
+
+    @Test
     fun `invalid link never reaches python`() = runTest {
-        val bridge = FakeBridge(::writePost)
-        val result = DownloadRepository(bridge, FakeExporter(), tmp.root).downloadPost("not a link")
+        val bridge = FakeBridge(::post)
+        val result = DownloadRepository(bridge, FakeExporter(), tmp.root).download("not a link")
         assertEquals(Outcome.Failure(AppError.InvalidLink), result)
         assertEquals(null, bridge.calledWith)
     }
 
     @Test
     fun `python errors are passed through`() = runTest {
-        val bridge = FakeBridge { _, _ -> Outcome.Failure(AppError.PrivateOrNoAccess) }
-        val result = DownloadRepository(bridge, FakeExporter(), tmp.root)
-            .downloadPost("https://www.instagram.com/p/ABCDEFG/")
+        val bridge = FakeBridge { _, _, _ -> Outcome.Failure(AppError.PrivateOrNoAccess) }
+        val result = DownloadRepository(bridge, FakeExporter(), tmp.root).download("https://www.instagram.com/p/ABCDEFG/")
         assertEquals(Outcome.Failure(AppError.PrivateOrNoAccess), result)
     }
 
     @Test
     fun `export failure is a storage error and the cache is still cleaned`() = runTest {
-        val repo = DownloadRepository(FakeBridge(::writePost), FakeExporter(failOn = "ABCDEFG_2.mp4"), tmp.root)
-        val result = repo.downloadPost("https://www.instagram.com/p/ABCDEFG/")
+        val repo = DownloadRepository(FakeBridge(::post), FakeExporter(failOn = "bob_2026-10-12_21-30-05_2.mp4"), tmp.root)
+        val result = repo.download("https://www.instagram.com/p/ABCDEFG/")
         assertTrue(result is Outcome.Failure && result.error is AppError.Storage)
         assertTrue(File(tmp.root, "downloads").listFiles().isNullOrEmpty())
     }
@@ -96,7 +126,7 @@ class DownloadRepositoryTest {
     @Test
     fun `stale work dirs are removed`() {
         val stale = File(tmp.root, "downloads/OLD-1").apply { mkdirs() }
-        DownloadRepository(FakeBridge(::writePost), FakeExporter(), tmp.root).cleanUpStale()
+        DownloadRepository(FakeBridge(::post), FakeExporter(), tmp.root).cleanUpStale()
         assertFalse(stale.exists())
     }
 }

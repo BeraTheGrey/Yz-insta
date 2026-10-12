@@ -53,7 +53,10 @@ chaquopy {
         version = libs.versions.python.get()
         pip {
             install("instaloader==${libs.versions.instaloader.get()}")
+            install("tzdata==${libs.versions.tzdata.get()}")
         }
+        // zoneinfo opens tzdata's files via importlib.resources; keep them as real files.
+        extractPackages("tzdata")
     }
 }
 

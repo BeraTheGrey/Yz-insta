@@ -1,6 +1,6 @@
 package com.yzinsta.downloader.data.python
 
-import com.yzinsta.downloader.data.download.DownloadedPost
+import com.yzinsta.downloader.data.download.DownloadedBatch
 import com.yzinsta.downloader.data.download.MediaFile
 import com.yzinsta.downloader.data.download.MediaKind
 import com.yzinsta.downloader.domain.AppError
@@ -34,12 +34,12 @@ object BridgeEnvelope {
         )
     }
 
-    /** Parses the `data` of `download_post`. */
-    fun downloadedPost(json: JSONObject): DownloadedPost {
+    /** Parses the `data` of `download_post` / `download_story` / `download_highlight`. */
+    fun downloadedBatch(json: JSONObject): DownloadedBatch {
         val data = json.getJSONObject("data")
         val files = data.getJSONArray("files")
-        return DownloadedPost(
-            shortcode = data.getString("shortcode"),
+        return DownloadedBatch(
+            id = data.getString("id"),
             owner = data.optString("owner").takeIf { it.isNotEmpty() && !data.isNull("owner") },
             files = List(files.length()) { i ->
                 val f = files.getJSONObject(i)

@@ -56,7 +56,7 @@ class DownloadViewModel(
         val link = _state.value.link
         _state.update { it.copy(autoStart = false, status = DownloadStatus.Running(DownloadStage.Fetching)) }
         job = viewModelScope.launch {
-            val result = downloads.downloadPost(link) { stage ->
+            val result = downloads.download(link) { stage ->
                 _state.update { it.copy(status = DownloadStatus.Running(stage)) }
             }
             _state.update {

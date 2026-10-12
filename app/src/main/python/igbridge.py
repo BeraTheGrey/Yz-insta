@@ -12,8 +12,12 @@ Kotlin. Keep both in sync.
 
 import json
 import os
+import re
 import sys
 import time
+from contextlib import contextmanager
+from datetime import timezone
+from zoneinfo import ZoneInfo
 
 import requests
 import instaloader
@@ -285,28 +289,134 @@ def collect_media(directory):
     return media
 
 
-@_envelope
-def download_post(shortcode, target_dir):
-    """Download one post/reel into ``target_dir``.
+# --- naming -------------------------------------------------------------------
 
-    Returns {"shortcode", "owner", "files": [{"path", "name", "kind", "mime"}]}.
+def _zone(tz_name):
+    if tz_name:
+        try:
+            return ZoneInfo(tz_name)
+        except Exception:  # noqa: BLE001 - unknown zone or no tz database: fall back to UTC
+            pass
+    return timezone.utc
+
+
+def media_name(owner, date_utc, tag, suffix, ext, tz_name=None):
+    """Gallery file name: ``<owner>_<YYYY-MM-DD_HH-MM-SS>_<tag><suffix><ext>`` in local time.
+
+    ``date_utc`` is Instaloader's naive UTC datetime of the post/story.
     """
-    loader = _require_loader()
-    os.makedirs(target_dir, exist_ok=True)
-    loader.dirname_pattern = _escape_pattern(os.path.abspath(target_dir))
-    loader.filename_pattern = "{shortcode}"
+    stamp = date_utc.replace(tzinfo=timezone.utc).astimezone(_zone(tz_name)).strftime("%Y-%m-%d_%H-%M-%S")
+    owner = re.sub(r"[^A-Za-z0-9._-]", "_", owner or "instagram")
+    return "%s_%s_%s%s%s" % (owner, stamp, tag, suffix, ext.lower())
 
-    post = instaloader.Post.from_shortcode(loader.context, shortcode)
-    loader.download_post(post, target=shortcode)
 
-    files = collect_media(target_dir)
-    if not files:
-        raise BridgeError(ErrorCode.UNKNOWN, "post downloaded but no media files were written")
+def _owner_of(item):
+    """Owner username of a Post/StoryItem without extra requests or failures."""
+    node = getattr(item, "_node", None) or {}
+    owner = node.get("owner") if isinstance(node, dict) else None
+    if isinstance(owner, dict) and owner.get("username"):
+        return owner["username"]
     try:
-        owner = post.owner_username  # informational only; never fail a finished download on it
+        return item.owner_username
     except Exception:  # noqa: BLE001
-        owner = None
-    return {"shortcode": shortcode, "owner": owner, "files": files}
+        return None
+
+
+@contextmanager
+def _iphone_disabled(loader):
+    """Story reels: the iPhone lookups are broken by Instagram's changed reply and, as
+    tested on a real account, gave no better quality than GraphQL. Skip them."""
+    ctx = loader.context
+    saved = ctx.iphone_support
+    ctx.iphone_support = False
+    try:
+        yield
+    finally:
+        ctx.iphone_support = saved
+
+
+def _report(listener, done, total):
+    if listener is not None:
+        listener.onProgress(done, total)
+
+
+def _download_items(loader, items, target_dir, kind, tz_name, listener):
+    """Download Posts or StoryItems one by one, each into its own sub-directory, and
+    return media dicts with gallery names. ``kind`` is "post" or "story"/"highlight"."""
+    loader.filename_pattern = "{shortcode}" if kind == "post" else "{mediaid}"
+    files = []
+    total = len(items)
+    _report(listener, 0, total)
+    for index, item in enumerate(items):
+        item_dir = os.path.join(os.path.abspath(target_dir), str(index))
+        os.makedirs(item_dir, exist_ok=True)
+        loader.dirname_pattern = _escape_pattern(item_dir)
+        if kind == "post":
+            loader.download_post(item, target=item.shortcode)
+            stem, tag = item.shortcode, item.shortcode
+        else:
+            loader.download_storyitem(item, target=kind)
+            stem, tag = str(item.mediaid), kind
+        owner = _owner_of(item)
+        for media in collect_media(item_dir):
+            base, ext = os.path.splitext(media["name"])
+            suffix = base[len(stem):] if base.startswith(stem) else ""  # "_1", "_2" for carousels
+            media["name"] = media_name(owner, item.date_utc, tag, suffix, ext, tz_name)
+            files.append(media)
+        _report(listener, index + 1, total)
+    if not files:
+        raise BridgeError(ErrorCode.UNKNOWN, "download finished but no media files were written")
+    return files
+
+
+# --- public download functions -------------------------------------------------
+# All return {"id", "owner", "files": [{"path", "name", "kind", "mime"}]}; "name" is
+# the gallery file name, "path" the file Instaloader wrote into target_dir.
+
+@_envelope
+def download_post(shortcode, target_dir, tz_name=None, listener=None):
+    """One post, reel or IGTV video."""
+    loader = _require_loader()
+    post = instaloader.Post.from_shortcode(loader.context, shortcode)
+    files = _download_items(loader, [post], target_dir, "post", tz_name, listener)
+    return {"id": shortcode, "owner": _owner_of(post), "files": files}
+
+
+@_envelope
+def download_story(username, media_id, target_dir, tz_name=None, listener=None):
+    """One story item (``media_id``) of ``username``, or all current ones if media_id is None."""
+    loader = _require_loader()
+    with _iphone_disabled(loader):
+        profile = instaloader.Profile.from_username(loader.context, username)
+        items = [item for story in loader.get_stories(userids=[profile.userid]) for item in story.get_items()]
+        if media_id is not None:
+            items = [item for item in items if item.mediaid == int(media_id)]
+        if not items:
+            raise BridgeError(ErrorCode.NOT_FOUND, "story expired or not visible to this account")
+        files = _download_items(loader, items, target_dir, "story", tz_name, listener)
+    return {"id": str(media_id or profile.userid), "owner": profile.username, "files": files}
+
+
+def highlight_items(loader, highlight_id):
+    """StoryItems of a highlight, from its id alone (share links carry no username)."""
+    highlight = instaloader.Highlight(loader.context, {"id": str(highlight_id)})
+    try:
+        highlight._fetch_items()  # Instaloader's own GraphQL query for the reel's items
+    except IndexError as exc:  # empty reels_media: no such highlight or no access
+        raise BridgeError(ErrorCode.NOT_FOUND, "highlight not found or not visible to this account") from exc
+    return [instaloader.StoryItem(loader.context, node) for node in highlight._items or []]
+
+
+@_envelope
+def download_highlight(highlight_id, target_dir, tz_name=None, listener=None):
+    """All items of a highlight."""
+    loader = _require_loader()
+    with _iphone_disabled(loader):
+        items = highlight_items(loader, highlight_id)
+        if not items:
+            raise BridgeError(ErrorCode.NOT_FOUND, "highlight is empty")
+        files = _download_items(loader, items, target_dir, "highlight", tz_name, listener)
+    return {"id": str(highlight_id), "owner": _owner_of(items[0]), "files": files}
 
 
 def story_items(loader, reel):

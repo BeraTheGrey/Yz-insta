@@ -1,9 +1,22 @@
 # YzInsta
 
 [Instaloader](https://instaloader.github.io/) tabanlı Android Instagram indiricisi.
-Instagram'a uygulama içindeki WebView ile giriş yaparsınız, gönderi/reel bağlantısını
-yapıştırırsınız (ya da Instagram'dan **Paylaş → YzInsta** dersiniz), fotoğraf ve
-videolar galeriye kaydedilir.
+Instagram'a uygulama içindeki WebView ile giriş yaparsınız; gönderi, reel, hikâye ya da
+öne çıkan bağlantısını yapıştırırsınız (ya da Instagram'dan **Paylaş → YzInsta** dersiniz),
+fotoğraf ve videolar galeriye kaydedilir.
+
+Desteklenen bağlantılar:
+
+| Bağlantı | İnen |
+| --- | --- |
+| `instagram.com/p/<kod>`, `/reel/<kod>`, `/reels/<kod>`, `/tv/<kod>` | Gönderi / reel (tüm kaydırmalı medya) |
+| `instagram.com/stories/<kullanıcı>/<id>` | O hikâye (aktif olmalı, 24 saat) |
+| `instagram.com/stories/highlights/<id>` ve Instagram'ın paylaştığı `instagram.com/s/…` öne çıkan bağlantıları | Öne çıkanın tamamı |
+
+Galeriye kaydedilen dosyalar `kullanıcı_YYYY-AA-GG_SS-DD-ss_<etiket>.<uzantı>` biçiminde
+adlandırılır; tarih paylaşım zamanıdır, telefonun saat diliminde. Etiket gönderilerde kısa
+koddur (kaydırmalı gönderide `_1`, `_2` eklenir), hikâyelerde `story`, öne çıkanlarda `highlight`.
+Örnek: `zeynep_2026-10-11_22-39-00_story.mp4`.
 
 - Kotlin + Jetpack Compose (Material 3), tek Activity, MVVM (ViewModel + coroutines)
 - Python tarafı: [Chaquopy](https://chaquo.com/chaquopy/) 17.1 + Python 3.13 + Instaloader
@@ -96,10 +109,10 @@ Projenin en kırılgan yeri burası. İki yoldan test edilebilir:
    Bu araç, uygulamanın kullandığı `igbridge.py` kodunun aynısını çalıştırır. Dosya canlı
    bir oturum içerir; işiniz bitince silin.
 
-### Hikâye indirmeyi deneme
+### Hikâye indirmeyi deneme (masaüstü)
 
-Hikâye desteği henüz uygulamada yok. Instaloader'ın hikâye fonksiyonları eski GraphQL
-sorgularını kullandığı için bugün çalışıp çalışmadığı belirsiz. Önce bilgisayarda deneyin:
+Uygulamadaki hikâye/öne çıkan desteği önce bu betikle gerçek bir hesapta doğrulandı.
+Instagram'da bir şey değişirse ilk bakılacak yer burası:
 
 ```bash
 pip install "instaloader==4.15.4"
@@ -154,9 +167,12 @@ bunları kontrol edin:
   edilmedi.
 - **Oturum ömrü.** Çerezlerin süresi Instagram'a bağlıdır. Süre dolunca uygulama yeniden
   giriş ister.
-- **Kapsam (MVP).** Yalnızca tek gönderi, reel ve IGTV. Story, highlight ve profil indirme
-  yok (mimari hazır: `InstaloaderBridge`'e metot, `igbridge.py`'ye fonksiyon eklemek
-  yeterli). İndirme ViewModel kapsamında çalışır; uygulama arka plana atılıp sistem
+- **Hikâye / öne çıkan.** Instaloader 4.15.4'te bu kısım, Instagram'ın değişen iPhone API
+  yanıtı yüzünden `KeyError` veriyordu. `igbridge.py` bu yolu hikâyelerde kapatıp GraphQL
+  kaynaklarını kullanıyor. Gerçek bir hesapla yapılan testte yüksek kalite denemesi aynı
+  boyutta dosya verdi, yani kalite kaybı görülmedi. Öne çıkan bağlantısında sahibin adı
+  yoktur; Instagram yanıtında da yoksa dosya adı `instagram_…` ile başlar.
+- **Kapsam.** Profilin tamamını indirme yok (planlandı). İndirme ViewModel kapsamında çalışır; uygulama arka plana atılıp sistem
   tarafından öldürülürse yarıda kalır. Foreground service ve indirme geçmişi henüz yok.
 - **Android 8–9.** Dosyalar galeriye `WRITE_EXTERNAL_STORAGE` izniyle doğrudan kopyalanır
   (izin ilk indirmede istenir). Android 10+ izin gerektirmez.

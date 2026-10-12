@@ -69,7 +69,7 @@ fun DownloadSection(state: DownloadUiState, vm: DownloadViewModel) {
             onValueChange = vm::onLinkChange,
             modifier = Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.link_label)) },
-            placeholder = { Text("https://www.instagram.com/reel/…") },
+            placeholder = { Text("https://www.instagram.com/…") },
             singleLine = true,
             enabled = !state.isRunning,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
@@ -123,6 +123,13 @@ private fun Progress(stage: DownloadStage) {
             DownloadStage.Fetching -> {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
                 Text(stringResource(R.string.stage_fetching))
+            }
+            is DownloadStage.Downloading -> {
+                LinearProgressIndicator(
+                    progress = { if (stage.total == 0) 0f else stage.done.toFloat() / stage.total },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(stringResource(R.string.stage_downloading, stage.done, stage.total))
             }
             is DownloadStage.Saving -> {
                 LinearProgressIndicator(

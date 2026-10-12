@@ -61,11 +61,11 @@ class BridgeEnvelopeTest {
 
     @Test
     fun `download_post data`() {
-        val raw = """{"ok":true,"data":{"shortcode":"ABC","owner":null,"files":[
+        val raw = """{"ok":true,"data":{"id":"ABC","owner":null,"files":[
             {"path":"/c/ABC_1.jpg","name":"ABC_1.jpg","kind":"image","mime":"image/jpeg"},
             {"path":"/c/ABC_2.mp4","name":"ABC_2.mp4","kind":"video","mime":"video/mp4"}]}}"""
-        val post = (BridgeEnvelope.decode(raw, BridgeEnvelope::downloadedPost) as Outcome.Success).value
-        assertEquals("ABC", post.shortcode)
+        val post = (BridgeEnvelope.decode(raw, BridgeEnvelope::downloadedBatch) as Outcome.Success).value
+        assertEquals("ABC", post.id)
         assertEquals(null, post.owner)
         assertEquals(listOf("ABC_1.jpg", "ABC_2.mp4"), post.files.map { it.displayName })
         assertEquals(

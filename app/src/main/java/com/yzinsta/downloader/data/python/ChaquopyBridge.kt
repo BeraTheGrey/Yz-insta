@@ -4,7 +4,8 @@ import android.content.Context
 import com.chaquo.python.PyException
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
-import com.yzinsta.downloader.data.download.DownloadedPost
+import com.yzinsta.downloader.data.download.DownloadedBatch
+import com.yzinsta.downloader.data.download.InstaLink
 import com.yzinsta.downloader.data.session.InstagramCookies
 import com.yzinsta.downloader.domain.AppError
 import com.yzinsta.downloader.domain.Outcome
@@ -14,6 +15,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.TimeZone
 
 /**
  * [InstaloaderBridge] backed by `igbridge.py` running in Chaquopy.
@@ -59,8 +61,21 @@ class ChaquopyBridge(
         call("clear_session")
     }
 
-    override suspend fun downloadPost(shortcode: String, targetDir: File): Outcome<DownloadedPost> =
-        BridgeEnvelope.decode(call("download_post", shortcode, targetDir.absolutePath), BridgeEnvelope::downloadedPost)
+    override suspend fun download(
+        target: InstaLink,
+        targetDir: File,
+        progress: ProgressListener,
+    ): Outcome<DownloadedBatch> {
+        // File names use the post date in the phone's time zone.
+        val tz = TimeZone.getDefault().id
+        val dir = targetDir.absolutePath
+        val raw = when (target) {
+            is InstaLink.Post -> call("download_post", target.shortcode, dir, tz, progress)
+            is InstaLink.Story -> call("download_story", target.username, target.mediaId, dir, tz, progress)
+            is InstaLink.Highlight -> call("download_highlight", target.id, dir, tz, progress)
+        }
+        return BridgeEnvelope.decode(raw, BridgeEnvelope::downloadedBatch)
+    }
 
     override suspend fun instaloaderVersion(): String = lock.withLock {
         withContext(io) { module().callAttr("version").toString() }
