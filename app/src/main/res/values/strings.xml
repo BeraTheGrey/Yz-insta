@@ -35,7 +35,7 @@
         <item quantity="one">%d file saved.</item>
         <item quantity="other">%d files saved.</item>
     </plurals>
-    <string name="download_done_where">Photos: Pictures/InstaloaderApp · Videos: Movies/InstaloaderApp</string>
+    <string name="download_done_where">Saved to Pictures/InstaloaderApp/%1$s</string>
     <string name="more_options">More options</string>
     <string name="reload">Reload</string>
     <string name="desktop_site">Desktop site</string>

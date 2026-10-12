@@ -40,7 +40,7 @@ fun DownloadSection(state: DownloadUiState, vm: DownloadViewModel) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
 
-    // API 26-28 write to the public Pictures/Movies dirs directly and need this permission.
+    // API 26-28 write to the public Pictures dir directly and need this permission.
     val needsLegacyPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) vm.download()
@@ -97,7 +97,7 @@ fun DownloadSection(state: DownloadUiState, vm: DownloadViewModel) {
                 val s = status.summary
                 Text(
                     pluralStringResource(R.plurals.download_done, s.images + s.videos, s.images + s.videos) +
-                        "\n" + stringResource(R.string.download_done_where),
+                        "\n" + stringResource(R.string.download_done_where, s.owner ?: "instagram"),
                     modifier = Modifier.padding(16.dp),
                 )
             }

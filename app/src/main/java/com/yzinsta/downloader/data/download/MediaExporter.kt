@@ -6,6 +6,8 @@ interface MediaExporter {
     suspend fun export(media: MediaFile): String
 
     companion object {
-        const val ALBUM = "InstaloaderApp"
+        /** Everything goes under Pictures/InstaloaderApp/<username>/ (one folder per account). */
+        const val ROOT = "InstaloaderApp"
+        const val UNKNOWN_ALBUM = "instagram"
     }
 }

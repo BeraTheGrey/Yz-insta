@@ -74,4 +74,18 @@ class BridgeEnvelopeTest {
         )
         assertEquals("/c/ABC_2.mp4", post.files[1].file.path)
     }
+
+    @Test
+    fun `each file carries its account folder`() {
+        val raw = """{"ok":true,"data":{"id":"179","owner":"zeynep","files":[
+            {"path":"/c/zeynep/a.jpg","name":"a.jpg","owner":"zeynep","kind":"image","mime":"image/jpeg"},
+            {"path":"/c/b.jpg","name":"b.jpg","kind":"image","mime":"image/jpeg"}]}}"""
+        val batch = (BridgeEnvelope.decode(raw, BridgeEnvelope::downloadedBatch) as Outcome.Success).value
+        assertEquals(listOf("zeynep", "zeynep"), batch.files.map { it.album }) // missing -> batch owner
+
+        val noOwner = """{"ok":true,"data":{"id":"1","owner":null,"files":[
+            {"path":"/c/b.jpg","name":"b.jpg","kind":"image","mime":"image/jpeg"}]}}"""
+        val unknown = (BridgeEnvelope.decode(noOwner, BridgeEnvelope::downloadedBatch) as Outcome.Success).value
+        assertEquals("instagram", unknown.files.single().album)
+    }
 }

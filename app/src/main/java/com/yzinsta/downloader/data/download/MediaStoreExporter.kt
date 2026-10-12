@@ -12,7 +12,8 @@ import java.io.File
 import java.io.IOException
 
 /**
- * Copies files into Pictures/InstaloaderApp and Movies/InstaloaderApp.
+ * Copies files into Pictures/InstaloaderApp/<username>/, photos and videos together so each
+ * account is one album. (MediaStore allows videos under Pictures/.)
  * API 29+: MediaStore with RELATIVE_PATH/IS_PENDING, no permission needed.
  * API 26-28: plain file copy into the public directory (needs WRITE_EXTERNAL_STORAGE)
  * followed by a media scan.
@@ -27,16 +28,14 @@ class MediaStoreExporter(context: Context) : MediaExporter {
 
     private fun exportScoped(media: MediaFile): String {
         val resolver = appContext.contentResolver
-        val (collection, baseDir) = when (media.kind) {
-            MediaKind.IMAGE -> MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) to
-                Environment.DIRECTORY_PICTURES
-            MediaKind.VIDEO -> MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) to
-                Environment.DIRECTORY_MOVIES
+        val collection = when (media.kind) {
+            MediaKind.IMAGE -> MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            MediaKind.VIDEO -> MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         }
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, media.displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, media.mimeType)
-            put(MediaStore.MediaColumns.RELATIVE_PATH, "$baseDir/${MediaExporter.ALBUM}")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/${relativeAlbum(media)}")
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val uri = resolver.insert(collection, values) ?: throw IOException("MediaStore insert failed")
@@ -54,16 +53,18 @@ class MediaStoreExporter(context: Context) : MediaExporter {
 
     @Suppress("DEPRECATION")
     private fun exportLegacy(media: MediaFile): String {
-        val baseDir = when (media.kind) {
-            MediaKind.IMAGE -> Environment.DIRECTORY_PICTURES
-            MediaKind.VIDEO -> Environment.DIRECTORY_MOVIES
-        }
-        val dir = File(Environment.getExternalStoragePublicDirectory(baseDir), MediaExporter.ALBUM)
+        val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), relativeAlbum(media))
         if (!dir.isDirectory && !dir.mkdirs()) throw IOException("Cannot create $dir")
         val target = uniqueFile(dir, media.displayName)
         media.file.copyTo(target)
         MediaScannerConnection.scanFile(appContext, arrayOf(target.absolutePath), arrayOf(media.mimeType), null)
         return target.absolutePath
+    }
+
+    /** "InstaloaderApp/<username>"; the name comes from Python but is sanitized again here. */
+    private fun relativeAlbum(media: MediaFile): String {
+        val album = media.album.replace(Regex("[^A-Za-z0-9._-]"), "_").trim('.').ifEmpty { MediaExporter.UNKNOWN_ALBUM }
+        return "${MediaExporter.ROOT}/$album"
     }
 
     private fun uniqueFile(dir: File, name: String): File {

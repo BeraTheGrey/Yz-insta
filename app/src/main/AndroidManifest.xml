@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Only Android 8-9 need this to put files into Pictures/ and Movies/; 10+ use MediaStore. -->
+    <!-- Only Android 8-9 need this to put files into Pictures/; 10+ use MediaStore. -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />

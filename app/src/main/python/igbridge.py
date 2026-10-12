@@ -308,8 +308,12 @@ def media_name(owner, date_utc, suffix, ext, tz_name=None):
     "_1", "_2", ... for carousel items and empty otherwise.
     """
     stamp = date_utc.replace(tzinfo=timezone.utc).astimezone(_zone(tz_name)).strftime("%Y-%m-%d_%H-%M-%S")
-    owner = re.sub(r"[^A-Za-z0-9._-]", "_", owner or "instagram")
-    return "%s_%s%s%s" % (owner, stamp, suffix, ext.lower())
+    return "%s_%s%s%s" % (safe_owner(owner), stamp, suffix, ext.lower())
+
+
+def safe_owner(owner):
+    """Username as used in file and folder names; "instagram" when unknown."""
+    return re.sub(r"[^A-Za-z0-9._-]", "_", owner or "instagram").strip(".") or "instagram"
 
 
 def _unique_path(directory, name):
@@ -353,8 +357,9 @@ def _report(listener, done, total):
 
 
 def _download_items(loader, items, target_dir, kind, tz_name, listener):
-    """Download Posts or StoryItems one by one and leave only renamed media files,
-    flat in ``target_dir``. Returns media dicts. ``kind`` is "post", "story" or "highlight".
+    """Download Posts or StoryItems one by one and leave only renamed media files in
+    ``target_dir/<owner>/`` (one folder per account). Returns media dicts, each with the
+    "owner" folder name. ``kind`` is "post", "story" or "highlight".
 
     Each item first goes into its own scratch directory so its files can be told
     apart; they are then moved up under their final names and the scratch is removed.
@@ -376,13 +381,15 @@ def _download_items(loader, items, target_dir, kind, tz_name, listener):
             else:
                 loader.download_storyitem(item, target=kind)
                 stem = str(item.mediaid)
-            owner = _owner_of(item)
+            owner = safe_owner(_owner_of(item))
+            owner_dir = os.path.join(target_dir, owner)
+            os.makedirs(owner_dir, exist_ok=True)
             for media in collect_media(scratch):
                 base, ext = os.path.splitext(media["name"])
                 suffix = base[len(stem):] if base.startswith(stem) else ""  # "_1", "_2" for carousels
-                dest = _unique_path(target_dir, media_name(owner, item.date_utc, suffix, ext, tz_name))
+                dest = _unique_path(owner_dir, media_name(owner, item.date_utc, suffix, ext, tz_name))
                 os.replace(media["path"], dest)
-                media["path"], media["name"] = dest, os.path.basename(dest)
+                media.update(path=dest, name=os.path.basename(dest), owner=owner)
                 files.append(media)
             _report(listener, index + 1, total)
     finally:
@@ -393,8 +400,8 @@ def _download_items(loader, items, target_dir, kind, tz_name, listener):
 
 
 # --- public download functions -------------------------------------------------
-# All return {"id", "owner", "files": [{"path", "name", "kind", "mime"}]}; files are
-# already renamed to <owner>_<date> and lie flat in target_dir.
+# All return {"id", "owner", "files": [{"path", "name", "owner", "kind", "mime"}]};
+# files are already renamed to <owner>_<date> and lie in target_dir/<owner>/.
 
 @_envelope
 def download_post(shortcode, target_dir, tz_name=None, listener=None):

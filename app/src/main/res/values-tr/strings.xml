@@ -32,7 +32,7 @@
         <item quantity="one">%d dosya kaydedildi.</item>
         <item quantity="other">%d dosya kaydedildi.</item>
     </plurals>
-    <string name="download_done_where">Fotoğraflar: Pictures/InstaloaderApp · Videolar: Movies/InstaloaderApp</string>
+    <string name="download_done_where">Kaydedildi: Pictures/InstaloaderApp/%1$s</string>
     <string name="more_options">Diğer seçenekler</string>
     <string name="reload">Yenile</string>
     <string name="desktop_site">Masaüstü sürümü</string>

@@ -60,6 +60,13 @@ def test_loader_writes_no_side_files(session):
     assert session.post_metadata_txt_pattern == ""
 
 
+def test_safe_owner():
+    assert igbridge.safe_owner("zeynep.k_1") == "zeynep.k_1"
+    assert igbridge.safe_owner(None) == "instagram"
+    assert igbridge.safe_owner("..") == "instagram"
+    assert igbridge.safe_owner("a/b") == "a_b"
+
+
 def test_media_name_uses_owner_and_local_time():
     date = datetime.datetime(2026, 10, 12, 18, 30, 5)
     assert igbridge.media_name("zeynep", date, "_2", ".JPG", "Europe/Istanbul") == \
@@ -82,10 +89,11 @@ def test_download_post_names_and_filters(monkeypatch, tmp_path):
         ("someone_2026-10-12_21-30-05_2.mp4", "video", "video/mp4"),
         ("someone_2026-10-12_21-30-05_3.webp", "image", "image/webp"),
     ]
-    # renamed on disk, flat in the target dir, nothing else left behind
+    # renamed on disk, in one folder per account, nothing else left behind
     target = tmp_path / "dir{with}braces"
-    assert sorted(os.listdir(target)) == sorted(f["name"] for f in data["files"])
-    assert all(f["path"] == str(target / f["name"]) for f in data["files"])
+    assert os.listdir(target) == ["someone"]
+    assert sorted(os.listdir(target / "someone")) == sorted(f["name"] for f in data["files"])
+    assert all(f["path"] == str(target / "someone" / f["name"]) and f["owner"] == "someone" for f in data["files"])
     assert progress.calls == [(0, 1), (1, 1)]
 
 
@@ -168,7 +176,7 @@ def test_download_all_current_stories(monkeypatch, tmp_path):
     # same second -> second file gets " (2)"; still one flat folder
     assert [f["name"] for f in result["data"]["files"]] == [
         "zeynep_2026-10-11_19-39-00.jpg", "zeynep_2026-10-11_19-39-00.mp4"]
-    assert sorted(os.listdir(tmp_path)) == ["zeynep_2026-10-11_19-39-00.jpg", "zeynep_2026-10-11_19-39-00.mp4"]
+    assert sorted(os.listdir(tmp_path / "zeynep")) == ["zeynep_2026-10-11_19-39-00.jpg", "zeynep_2026-10-11_19-39-00.mp4"]
     assert progress.calls == [(0, 2), (1, 2), (2, 2)]
 
 
@@ -205,7 +213,7 @@ def test_same_second_files_do_not_overwrite(monkeypatch, tmp_path):
     result = json.loads(igbridge.download_highlight("9", str(tmp_path), "UTC"))
     assert [f["name"] for f in result["data"]["files"]] == [
         "zeynep_2026-10-11_19-39-00.jpg", "zeynep_2026-10-11_19-39-00 (2).jpg", "zeynep_2026-10-11_19-39-00 (3).jpg"]
-    assert len(os.listdir(tmp_path)) == 3
+    assert len(os.listdir(tmp_path / "zeynep")) == 3
 
 
 def test_missing_highlight(monkeypatch, tmp_path):

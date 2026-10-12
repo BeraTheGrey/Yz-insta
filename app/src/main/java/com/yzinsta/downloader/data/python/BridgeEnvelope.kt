@@ -1,6 +1,7 @@
 package com.yzinsta.downloader.data.python
 
 import com.yzinsta.downloader.data.download.DownloadedBatch
+import com.yzinsta.downloader.data.download.MediaExporter
 import com.yzinsta.downloader.data.download.MediaFile
 import com.yzinsta.downloader.data.download.MediaKind
 import com.yzinsta.downloader.domain.AppError
@@ -38,9 +39,10 @@ object BridgeEnvelope {
     fun downloadedBatch(json: JSONObject): DownloadedBatch {
         val data = json.getJSONObject("data")
         val files = data.getJSONArray("files")
+        val owner = data.optString("owner").takeIf { it.isNotEmpty() && !data.isNull("owner") }
         return DownloadedBatch(
             id = data.getString("id"),
-            owner = data.optString("owner").takeIf { it.isNotEmpty() && !data.isNull("owner") },
+            owner = owner,
             files = List(files.length()) { i ->
                 val f = files.getJSONObject(i)
                 MediaFile(
@@ -48,6 +50,7 @@ object BridgeEnvelope {
                     displayName = f.getString("name"),
                     kind = if (f.getString("kind") == "video") MediaKind.VIDEO else MediaKind.IMAGE,
                     mimeType = f.getString("mime"),
+                    album = f.optString("owner").ifEmpty { owner ?: MediaExporter.UNKNOWN_ALBUM },
                 )
             },
         )

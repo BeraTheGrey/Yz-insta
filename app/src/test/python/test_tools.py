@@ -75,7 +75,7 @@ def test_story_flow_offline(monkeypatch, tmp_path, capsys):
         "https://www.instagram.com/stories/someone/222/"])
 
     assert check_story.main() == 0
-    assert sorted(os.listdir(tmp_path)) == ["someone_2026-10-12_20-00-00.mp4"]
+    assert sorted(os.listdir(tmp_path / "someone")) == ["someone_2026-10-12_20-00-00.mp4"]
     assert "stories downloaded fine" in capsys.readouterr().out
 
 
@@ -138,8 +138,8 @@ def test_profile_flow_offline(monkeypatch, tmp_path, capsys):
     assert check_profile.main() == 0
     assert downloaded == ["AAA", "BBB", "RRR"]  # newest 2 posts + reels not already downloaded
     out = capsys.readouterr().out
-    # flat folder, owner_date names; same timestamp -> (2), (3)
-    assert sorted(os.listdir(tmp_path)) == [
+    # one folder per account, owner_date names; same timestamp -> (2), (3)
+    assert sorted(os.listdir(tmp_path / "zeynep")) == [
         "zeynep_2026-10-01_15-00-00 (2).jpg", "zeynep_2026-10-01_15-00-00 (3).jpg", "zeynep_2026-10-01_15-00-00.jpg"]
     assert "zeynep_2026-10-01_15-00-00.jpg" in out
     assert "requests to Instagram:" in out and "no throttling seen" in out
