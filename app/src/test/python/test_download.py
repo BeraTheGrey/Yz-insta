@@ -118,3 +118,38 @@ def test_story_items_normal_path(session):
     reel = FakeReel(session.context)
     assert igbridge.story_items(session, reel) == ["item1", "item2"]
     assert reel.calls == 1
+
+
+class FakeStoryItem:
+    mediaid = 4005791587892109102
+
+    def __init__(self):
+        self._iphone_struct_ = None
+
+
+def test_prefetch_story_hq_attaches_media_info(session, monkeypatch):
+    seen = []
+
+    def fake_iphone_json(path, params):
+        seen.append(path)
+        return {"items": [{"pk": 1, "video_versions": [{"url": "https://hq"}]}]}
+    monkeypatch.setattr(session.context, "get_iphone_json", fake_iphone_json)
+    item = FakeStoryItem()
+    assert igbridge.prefetch_story_hq(session, item) is True
+    assert seen == ["api/v1/media/4005791587892109102/info/"]
+    assert item._iphone_struct_["video_versions"][0]["url"] == "https://hq"
+
+
+@pytest.mark.parametrize("reply", [{}, {"items": []}, {"items": [{"pk": 1}]}, None])
+def test_prefetch_story_hq_falls_back(session, monkeypatch, reply):
+    monkeypatch.setattr(session.context, "get_iphone_json", lambda path, params: reply)
+    item = FakeStoryItem()
+    assert igbridge.prefetch_story_hq(session, item) is False
+    assert item._iphone_struct_ is None
+
+
+def test_prefetch_story_hq_network_error(session, monkeypatch):
+    def boom(path, params):
+        raise ie.ConnectionException("nope")
+    monkeypatch.setattr(session.context, "get_iphone_json", boom)
+    assert igbridge.prefetch_story_hq(session, FakeStoryItem()) is False

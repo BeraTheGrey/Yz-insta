@@ -330,5 +330,25 @@ def story_items(loader, reel):
             ctx.iphone_support = saved
 
 
+def prefetch_story_hq(loader, item):
+    """Try to get high-quality URLs for a StoryItem from the per-media info endpoint.
+
+    StoryItem looks its iPhone data up in ``reels_media?reel_ids=<owner id>``, which
+    fails with Instagram's current reply (KeyError on the owner id) and could never
+    find older highlight items anyway. ``api/v1/media/<pk>/info/`` is what Post uses.
+    Returns True if HQ data was attached; otherwise StoryItem keeps using the GraphQL
+    resources as before.
+    """
+    try:
+        data = loader.context.get_iphone_json(path="api/v1/media/%d/info/" % item.mediaid, params={})
+        struct = data["items"][0]
+    except (ie.InstaloaderException, KeyError, IndexError, TypeError):
+        return False
+    if not ("video_versions" in struct or "image_versions2" in struct):
+        return False
+    item._iphone_struct_ = struct
+    return True
+
+
 def version():
     return instaloader.__version__

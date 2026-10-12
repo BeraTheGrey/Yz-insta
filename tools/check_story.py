@@ -15,6 +15,9 @@ Usage:
     # all current stories of a user
     python3 tools/check_story.py --sessionid "..." USERNAME
 
+    # compare quality: same highlight with the experimental HQ lookup, into another folder
+    python3 tools/check_story.py --sessionid "..." <highlight link> --user USERNAME --limit 3 --hq --out hq-test
+
     # list a user's highlights, then download one of them
     python3 tools/check_story.py --sessionid "..." USERNAME --highlights
     python3 tools/check_story.py --sessionid "..." https://www.instagram.com/stories/highlights/17912345678901234/ --user USERNAME
@@ -86,11 +89,14 @@ def describe(item):
     return "%s  %s  %s UTC" % (item.mediaid, kind, item.date_utc.strftime("%Y-%m-%d %H:%M"))
 
 
-def download_items(loader, items, out_dir, debug):
+def download_items(loader, items, out_dir, debug, hq=False):
     os.makedirs(out_dir, exist_ok=True)
     loader.dirname_pattern = igbridge._escape_pattern(os.path.abspath(out_dir))
     loader.filename_pattern = "{owner_username}_{mediaid}"
     for item in items:
+        if hq:
+            got = igbridge.prefetch_story_hq(loader, item)
+            print("   HQ info for %s: %s" % (item.mediaid, "yes" if got else "no (using normal quality)"))
         step("download %s" % describe(item), lambda: loader.download_storyitem(item, target="story"), debug)
     files = igbridge.collect_media(out_dir)
     print("\nFiles in %s:" % out_dir)
@@ -149,7 +155,7 @@ def run(args):
         return 1
     if args.limit:
         items = items[:args.limit]
-    files = download_items(loader, items, args.out, args.debug)
+    files = download_items(loader, items, args.out, args.debug, hq=args.hq)
     print("\nRESULT: %s" % ("stories downloaded fine" if files else "no media files were written"))
     return 0 if files else 1
 
@@ -162,6 +168,8 @@ def main():
     parser.add_argument("--highlights", action="store_true", help="list the user's highlights")
     parser.add_argument("--limit", type=int, default=0, help="download at most N items (0 = all)")
     parser.add_argument("--out", default="story-test-output", help="output folder (default: %(default)s)")
+    parser.add_argument("--hq", action="store_true",
+                        help="experimental: fetch high-quality URLs via api/v1/media/<id>/info/")
     parser.add_argument("--debug", action="store_true", help="print full tracebacks")
     args = parser.parse_args()
     try:
