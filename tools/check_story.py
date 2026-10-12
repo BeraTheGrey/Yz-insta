@@ -127,11 +127,12 @@ def run(args):
         if not match:
             print("\nHighlight %s not found among @%s's highlights." % (ident, username))
             return 1
-        items = step("list items of %r" % match[0].title, lambda: list(match[0].get_items()), args.debug)
+        items = step("list items of %r" % match[0].title, lambda: igbridge.story_items(loader, match[0]), args.debug)
     else:
         stories = step("fetch current stories", lambda: list(loader.get_stories(userids=[profile.userid])),
                        args.debug)
-        items = [item for story in stories for item in story.get_items()]
+        items = step("list story items", lambda: [item for story in stories
+                                                   for item in igbridge.story_items(loader, story)], args.debug)
         print("   %d active story item(s)" % len(items))
         for item in items:
             print("   " + describe(item))

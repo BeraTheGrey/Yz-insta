@@ -88,3 +88,33 @@ def test_download_errors_are_classified(monkeypatch, tmp_path, exc, code):
 def test_download_requires_session(tmp_path):
     igbridge._loader = None
     assert json.loads(igbridge.download_post("ABC", str(tmp_path)))["error"]["code"] == "NOT_LOGGED_IN"
+
+
+class FakeReel:
+    """Mimics Highlight.get_items(): the iPhone reels_media lookup raises KeyError while enabled."""
+
+    def __init__(self, context):
+        self.context = context
+        self.calls = 0
+
+    def get_items(self):
+        self.calls += 1
+        if self.context.iphone_support:
+            raise KeyError("highlight:17973718328923841")
+        yield "item1"
+        yield "item2"
+
+
+def test_story_items_survives_changed_iphone_reply(session):
+    reel = FakeReel(session.context)
+    assert session.context.iphone_support is True
+    assert igbridge.story_items(session, reel) == ["item1", "item2"]
+    assert reel.calls == 2
+    assert session.context.iphone_support is True  # restored for the downloads
+
+
+def test_story_items_normal_path(session):
+    session.context.iphone_support = False  # FakeReel then succeeds first time
+    reel = FakeReel(session.context)
+    assert igbridge.story_items(session, reel) == ["item1", "item2"]
+    assert reel.calls == 1

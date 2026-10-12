@@ -309,5 +309,26 @@ def download_post(shortcode, target_dir):
     return {"shortcode": shortcode, "owner": owner, "files": files}
 
 
+def story_items(loader, reel):
+    """StoryItems of a Story or Highlight, tolerating Instagram's changed iPhone API.
+
+    get_items() also fetches ``api/v1/feed/reels_media/?reel_ids=...`` (only used for
+    higher quality URLs) and indexes the reply with ``reels["highlight:<id>"]``. Instagram
+    no longer always returns that key, so get_items() dies with a KeyError although the
+    GraphQL item list is fine. In that case read the items again without the iPhone
+    reply; StoryItem.url / video_url then fall back to the GraphQL resources.
+    """
+    try:
+        return list(reel.get_items())
+    except KeyError:
+        ctx = loader.context
+        saved = ctx.iphone_support
+        ctx.iphone_support = False
+        try:
+            return list(reel.get_items())
+        finally:
+            ctx.iphone_support = saved
+
+
 def version():
     return instaloader.__version__
