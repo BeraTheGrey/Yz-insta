@@ -32,8 +32,12 @@ object LinkParser {
     private val shareLink = Regex(HOST + """s/([A-Za-z0-9+/_=-]+)""", RegexOption.IGNORE_CASE)
     private val decodedHighlight = Regex("""^highlight:(\d+)$""")
 
-    // instagram.com/<username>[/][?...] - checked last, after all content links.
-    private val profile = Regex(HOST + """([A-Za-z0-9_.]{1,30})/?(?=$|[?#\s])""", RegexOption.IGNORE_CASE)
+    // instagram.com/<username>[/][?...], also a profile tab (/reels/, /tagged/, ...) and the
+    // app's instagram.com/_u/<username> form - checked last, after all content links.
+    private val profile = Regex(
+        HOST + """(?:_u/)?@?([A-Za-z0-9_.]{1,30})/?(?:(?:reels|tagged|saved|igtv|guides|feed|channel)/?)?(?=$|[?#\s])""",
+        RegexOption.IGNORE_CASE,
+    )
 
     /** First path segments that are Instagram pages, not usernames. */
     private val reserved = setOf(
@@ -42,8 +46,11 @@ object LinkParser {
         "static", "oauth", "invites", "nametag", "lite", "directory", "topics", "locations", "tags", "ar",
     )
 
-    fun parse(text: String?): InstaLink? {
-        if (text.isNullOrBlank()) return null
+    fun parse(input: String?): InstaLink? {
+        if (input.isNullOrBlank()) return null
+        // Turkish keyboards turn "instagram" into "İnstagram" or a typed i into ı; Instagram
+        // URLs and usernames are ASCII only, so mapping them back is safe.
+        val text = input.replace('ı', 'i').replace('İ', 'I')
         highlight.find(text)?.let { return InstaLink.Highlight(it.groupValues[1]) }
         shareLink.find(text)?.let { match ->
             decodeBase64(match.groupValues[1])?.let { decodedHighlight.find(it) }

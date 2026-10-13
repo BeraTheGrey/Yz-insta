@@ -98,7 +98,10 @@ import check_profile  # noqa: E402
 
 
 @pytest.mark.parametrize("text", ["zeynep.k_1", "@zeynep.k_1", "https://www.instagram.com/zeynep.k_1/",
-                                  "https://instagram.com/zeynep.k_1?igsh=abc"])
+                                  "https://instagram.com/zeynep.k_1?igsh=abc",
+                                  "https://www.instagram.com/zeynep.k_1/reels/",
+                                  "https://www.instagram.com/_u/zeynep.k_1",
+                                  "https://İnstagram.com/zeynep.k_1?obrf=MWhxMDhnbTFlbDNiZw%3D%3D"])
 def test_parse_username(text):
     assert check_profile.parse_username(text) == "zeynep.k_1"
 

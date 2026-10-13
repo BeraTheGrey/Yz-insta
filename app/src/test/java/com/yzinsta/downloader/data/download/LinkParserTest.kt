@@ -63,8 +63,20 @@ class LinkParserTest {
             "https://instagram.com/zeynep.k_1?igsh=MTZ1" to "zeynep.k_1",
             "instagram.com/zeynep" to "zeynep",
             "Check out https://www.instagram.com/zeynep/ on Instagram" to "zeynep",
+            "https://instagram.com/ilker.maister?obrf=MWhxMDhnbTFlbDNiZw%3D%3D" to "ilker.maister",
+            "https://www.instagram.com/zeynep/reels/" to "zeynep",
+            "https://www.instagram.com/zeynep/tagged/?hl=tr" to "zeynep",
+            "https://www.instagram.com/_u/zeynep" to "zeynep",
+            "https://www.instagram.com/@zeynep" to "zeynep",
         )
         for ((link, user) in cases) assertEquals(link, InstaLink.Profile(user), LinkParser.parse(link))
+    }
+
+    @Test
+    fun `turkish i in typed links`() {
+        assertEquals(InstaLink.Profile("ilkermaister"), LinkParser.parse("https://İnstagram.com/ılkermaister?obrf=x"))
+        assertEquals(InstaLink.Profile("Ilker"), LinkParser.parse("İnstagram.com/İlker"))
+        assertEquals(InstaLink.Post("C1a2B3c4D5e"), LinkParser.parse("https://www.İnstagram.com/p/C1a2B3c4D5e/"))
     }
 
     @Test

@@ -42,12 +42,15 @@ import igbridge  # noqa: E402
 from check_cookies import add_cookie_args, read_cookies  # noqa: E402
 from check_story import StepFailed, step  # noqa: E402
 
-PROFILE_RE = re.compile(r"instagram\.com/([A-Za-z0-9_.]{1,30})/?(?:[?#].*)?$", re.IGNORECASE)
+PROFILE_RE = re.compile(
+    r"instagram\.com/(?:_u/)?@?([A-Za-z0-9_.]{1,30})/?(?:(?:reels|tagged|saved|igtv|guides|feed|channel)/?)?(?:[?#].*)?$",
+    re.IGNORECASE)
 USERNAME_RE = re.compile(r"^@?([A-Za-z0-9_.]{1,30})$")
 
 
 def parse_username(text):
-    text = text.strip()
+    # Same as the app: Turkish keyboards produce İnstagram / ı; Instagram names are ASCII.
+    text = text.strip().replace("ı", "i").replace("İ", "I")
     for regex in (PROFILE_RE, USERNAME_RE):
         m = regex.search(text)
         if m:
