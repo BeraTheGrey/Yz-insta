@@ -6,6 +6,7 @@ import android.media.MediaScannerConnection
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.annotation.RequiresApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -26,6 +27,7 @@ class MediaStoreExporter(context: Context) : MediaExporter {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) exportScoped(media) else exportLegacy(media)
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun exportScoped(media: MediaFile): String {
         val resolver = appContext.contentResolver
         val collection = when (media.kind) {

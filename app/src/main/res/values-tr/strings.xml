@@ -41,4 +41,26 @@
     <string name="cookie_login_body">Instagram giriş sayfası açılmıyorsa bunu kullan. Bilgisayarındaki tarayıcıda instagram.com\'a giriş yap, geliştirici araçlarını aç (F12) → Application/Depolama → Cookies → https://www.instagram.com ve \"sessionid\" değerini (ya da Cookie başlığının tamamını) kopyala. Bu değer hesabına tam erişim sağlar: kimseyle paylaşma.</string>
     <string name="cookie_login_field">sessionid veya Cookie başlığı</string>
     <string name="cookie_login_confirm">Giriş yap</string>
+    <string name="stop">Durdur</string>
+    <string name="ok">Tamam</string>
+    <string name="section_stories">Hikâyeler</string>
+    <string name="section_highlights">Öne çıkanlar</string>
+    <string name="section_posts">Gönderiler</string>
+    <string name="section_reels">Reels</string>
+    <string name="profile_post_count">%1$d gönderi</string>
+    <string name="profile_private">gizli hesap</string>
+    <string name="profile_limit_label">Gönderi ve reels</string>
+    <string name="profile_limit_n">Son %1$d</string>
+    <string name="profile_limit_all">Tümü</string>
+    <string name="profile_all_warning">Hepsini indirmek uzun sürebilir; Instagram yavaşlatırsa uygulama bekleyip kaldığı yerden devam eder.</string>
+    <string name="profile_skip_note">Daha önce inenler atlanır; durdurup sonra devam edebilirsin.</string>
+    <string name="profile_busy">Şu anda bir profil indirmesi sürüyor.</string>
+    <string name="profile_start">İndirmeyi başlat</string>
+    <string name="profile_channel">Profil indirmeleri</string>
+    <string name="profile_progress_counts">%1$d indirildi · %2$d atlandı · %3$d hata</string>
+    <string name="profile_waiting">Instagram istekleri sınırlıyor. Yaklaşık %1$d dk sonra devam edilecek…</string>
+    <string name="profile_done_title">\@%1$s indirildi</string>
+    <string name="profile_cancelled_title">\@%1$s durduruldu</string>
+    <string name="profile_failed_title">\@%1$s indirilemedi</string>
+    <string name="profile_where">Dosyalar Pictures/InstaloaderApp/&lt;kullanıcı&gt; klasöründe.</string>
 </resources>

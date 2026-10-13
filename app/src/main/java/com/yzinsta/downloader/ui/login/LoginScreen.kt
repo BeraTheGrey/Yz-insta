@@ -42,8 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.webkit.WebSettingsCompat
-import androidx.webkit.WebViewFeature
 import com.yzinsta.downloader.R
 import com.yzinsta.downloader.ui.home.ErrorCard
 import com.yzinsta.downloader.domain.AppError
@@ -145,10 +143,6 @@ fun LoginScreen(
                         settings.allowFileAccess = false
                         settings.allowContentAccess = false
                         applyUserAgent(this, desktopMode)
-                        // Don't announce the app's package name to Instagram (embedded-browser detection).
-                        if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
-                            WebSettingsCompat.setRequestedWithHeaderOriginAllowList(settings, emptySet())
-                        }
                         CookieManager.getInstance().setAcceptCookie(true)
                         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
 

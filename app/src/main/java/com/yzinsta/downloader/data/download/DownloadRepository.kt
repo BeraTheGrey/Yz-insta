@@ -1,5 +1,6 @@
 package com.yzinsta.downloader.data.download
 
+import com.yzinsta.downloader.data.history.DownloadHistory
 import com.yzinsta.downloader.data.python.InstaloaderBridge
 import com.yzinsta.downloader.domain.AppError
 import com.yzinsta.downloader.domain.Outcome
@@ -23,6 +24,7 @@ class DownloadRepository(
     private val bridge: InstaloaderBridge,
     private val exporter: MediaExporter,
     private val cacheRoot: File,
+    private val history: DownloadHistory? = null,
 ) {
     private val workRoot get() = File(cacheRoot, "downloads")
 
@@ -35,7 +37,8 @@ class DownloadRepository(
         link: String,
         onStage: (DownloadStage) -> Unit = {},
     ): Outcome<DownloadSummary> {
-        val target = LinkParser.parse(link) ?: return Outcome.Failure(AppError.InvalidLink)
+        val target = LinkParser.parse(link)
+        if (target == null || target is InstaLink.Profile) return Outcome.Failure(AppError.InvalidLink)
         val workDir = File(workRoot, "${System.nanoTime()}")
         try {
             onStage(DownloadStage.Fetching)
@@ -59,6 +62,13 @@ class DownloadRepository(
                 }
             }
             onStage(DownloadStage.Saving(batch.files.size, batch.files.size))
+            // Posts and single stories use the same ids as profile downloads, which then skip them.
+            val kind = when (target) {
+                is InstaLink.Post -> "post"
+                is InstaLink.Story -> "story"
+                else -> "highlight"
+            }
+            batch.owner?.let { history?.record(it, batch.id, kind, batch.files.size) }
             return Outcome.Success(
                 DownloadSummary(
                     id = batch.id,

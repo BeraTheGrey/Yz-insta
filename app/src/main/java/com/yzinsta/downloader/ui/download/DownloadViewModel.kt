@@ -5,6 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.yzinsta.downloader.data.download.DownloadRepository
 import com.yzinsta.downloader.data.download.DownloadStage
 import com.yzinsta.downloader.data.download.DownloadSummary
+import com.yzinsta.downloader.data.download.InstaLink
+import com.yzinsta.downloader.data.download.LinkParser
+import com.yzinsta.downloader.data.profile.ProfileDownloadManager
+import com.yzinsta.downloader.data.profile.ProfileInfo
+import com.yzinsta.downloader.data.profile.ProfileJobState
 import com.yzinsta.downloader.data.session.SessionRepository
 import com.yzinsta.downloader.domain.AppError
 import com.yzinsta.downloader.domain.Outcome
@@ -20,6 +25,9 @@ sealed interface DownloadStatus {
     data class Running(val stage: DownloadStage) : DownloadStatus
     data class Done(val summary: DownloadSummary) : DownloadStatus
     data class Failed(val error: AppError) : DownloadStatus
+
+    /** A profile link was entered: show what can be downloaded from it. */
+    data class ProfileReady(val info: ProfileInfo) : DownloadStatus
 }
 
 data class DownloadUiState(
@@ -34,10 +42,13 @@ data class DownloadUiState(
 class DownloadViewModel(
     private val downloads: DownloadRepository,
     private val session: SessionRepository,
+    private val profiles: ProfileDownloadManager,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DownloadUiState())
     val state: StateFlow<DownloadUiState> = _state.asStateFlow()
+
+    val profileJob: StateFlow<ProfileJobState> = profiles.state
 
     private var job: Job? = null
 
@@ -55,6 +66,11 @@ class DownloadViewModel(
         if (job?.isActive == true) return
         val link = _state.value.link
         _state.update { it.copy(autoStart = false, status = DownloadStatus.Running(DownloadStage.Fetching)) }
+        val target = LinkParser.parse(link)
+        if (target is InstaLink.Profile) {
+            job = viewModelScope.launch { loadProfile(target.username) }
+            return
+        }
         job = viewModelScope.launch {
             val result = downloads.download(link) { stage ->
                 _state.update { it.copy(status = DownloadStatus.Running(stage)) }
@@ -70,6 +86,24 @@ class DownloadViewModel(
             }
         }
     }
+
+    private suspend fun loadProfile(username: String) {
+        val result = profiles.profileInfo(username)
+        _state.update {
+            when (result) {
+                is Outcome.Success -> it.copy(status = DownloadStatus.ProfileReady(result.value))
+                is Outcome.Failure -> it.copy(status = DownloadStatus.Failed(result.error))
+            }
+        }
+        if (result is Outcome.Failure && result.error.requiresLogin) session.invalidate(result.error)
+    }
+
+    /** The options card handed the job to the service. */
+    fun onProfileStarted() = _state.update { it.copy(status = DownloadStatus.Idle, link = "") }
+
+    fun dismissProfileOptions() = _state.update { it.copy(status = DownloadStatus.Idle) }
+
+    fun dismissProfileJob() = profiles.dismiss()
 
     fun consumeAutoStart() = _state.update { it.copy(autoStart = false) }
 }

@@ -57,12 +57,25 @@ class LinkParserTest {
     }
 
     @Test
+    fun `profile links`() {
+        val cases = mapOf(
+            "https://www.instagram.com/zeynep.k_1/" to "zeynep.k_1",
+            "https://instagram.com/zeynep.k_1?igsh=MTZ1" to "zeynep.k_1",
+            "instagram.com/zeynep" to "zeynep",
+            "Check out https://www.instagram.com/zeynep/ on Instagram" to "zeynep",
+        )
+        for ((link, user) in cases) assertEquals(link, InstaLink.Profile(user), LinkParser.parse(link))
+    }
+
+    @Test
     fun `unsupported or invalid`() {
         listOf(
             null,
             "",
             "hello",
-            "https://www.instagram.com/someuser/",
+            "https://www.instagram.com/explore/",
+            "https://www.instagram.com/accounts/login/",
+            "https://www.instagram.com/direct/inbox/",
             "https://www.instagram.com/stories/someuser/",
             "https://www.instagram.com/s/bm90IGEgaGlnaGxpZ2h0", // base64("not a highlight")
             "https://www.instagram.com/s/%%%",

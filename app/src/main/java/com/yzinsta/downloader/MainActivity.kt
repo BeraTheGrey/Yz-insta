@@ -39,7 +39,9 @@ class MainActivity : ComponentActivity() {
         viewModelFactory { initializer { SessionViewModel(container.sessionRepository, container.webCookies) } }
     }
     private val downloadVm: DownloadViewModel by viewModels {
-        viewModelFactory { initializer { DownloadViewModel(container.downloadRepository, container.sessionRepository) } }
+        viewModelFactory {
+            initializer { DownloadViewModel(container.downloadRepository, container.sessionRepository, container.profileManager) }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

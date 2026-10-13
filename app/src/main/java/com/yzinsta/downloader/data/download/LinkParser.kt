@@ -12,6 +12,9 @@ sealed interface InstaLink {
 
     /** A whole highlight. Share links carry only its id, not the owner. */
     data class Highlight(val id: String) : InstaLink
+
+    /** A profile page; downloaded as a background job with options. */
+    data class Profile(val username: String) : InstaLink
 }
 
 /** Finds the first Instagram link in a link or in shared text. */
@@ -29,6 +32,16 @@ object LinkParser {
     private val shareLink = Regex(HOST + """s/([A-Za-z0-9+/_=-]+)""", RegexOption.IGNORE_CASE)
     private val decodedHighlight = Regex("""^highlight:(\d+)$""")
 
+    // instagram.com/<username>[/][?...] - checked last, after all content links.
+    private val profile = Regex(HOST + """([A-Za-z0-9_.]{1,30})/?(?=$|[?#\s])""", RegexOption.IGNORE_CASE)
+
+    /** First path segments that are Instagram pages, not usernames. */
+    private val reserved = setOf(
+        "p", "reel", "reels", "tv", "stories", "explore", "accounts", "direct", "s", "about", "legal",
+        "developer", "web", "challenge", "emails", "session", "privacy", "terms", "api", "graphql",
+        "static", "oauth", "invites", "nametag", "lite", "directory", "topics", "locations", "tags", "ar",
+    )
+
     fun parse(text: String?): InstaLink? {
         if (text.isNullOrBlank()) return null
         highlight.find(text)?.let { return InstaLink.Highlight(it.groupValues[1]) }
@@ -41,6 +54,10 @@ object LinkParser {
             if (!user.equals("highlights", ignoreCase = true)) return InstaLink.Story(user, match.groupValues[2])
         }
         post.find(text)?.let { return InstaLink.Post(it.groupValues[1]) }
+        profile.find(text)?.let { match ->
+            val user = match.groupValues[1]
+            if (user.lowercase() !in reserved && !user.startsWith('.')) return InstaLink.Profile(user)
+        }
         return null
     }
 

@@ -449,6 +449,173 @@ def download_highlight(highlight_id, target_dir, tz_name=None, listener=None):
     return {"id": str(highlight_id), "owner": _owner_of(items[0]), "files": files}
 
 
+# --- whole profiles --------------------------------------------------------------
+# A profile download is a job driven step by step from Kotlin: profile_start() plans
+# it, every profile_next() downloads one item. A fatal error (rate limit, network,
+# session) leaves the current item pending, so the next call retries exactly that
+# item after the app has waited. Instaloader's NodeIterator keeps its state when a
+# page fetch fails, so listing resumes too.
+
+PROFILE_FATAL = {ErrorCode.RATE_LIMITED, ErrorCode.NETWORK, ErrorCode.SESSION_EXPIRED,
+                 ErrorCode.CHALLENGE_REQUIRED, ErrorCode.NOT_LOGGED_IN}
+
+_profile_job = None
+
+
+class _Section:
+    def __init__(self, name, kind, factory, limit=0, expected=None):
+        self.name, self.kind, self.factory, self.limit = name, kind, factory, limit
+        self.expected = expected  # for progress; None when unknown
+        self.iterator = None
+        self.taken = 0
+
+
+class _HighlightItems:
+    """Iterates the items of all highlights of a profile; safe to call again after an error."""
+
+    def __init__(self, loader, profile):
+        self.loader, self.profile = loader, profile
+        self.highlights = None
+        self.index = 0
+        self.items, self.pos = [], 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.highlights is None:
+            self.highlights = list(self.loader.get_highlights(self.profile))
+        while self.pos >= len(self.items):
+            if self.index >= len(self.highlights):
+                raise StopIteration
+            try:
+                items = highlight_items(self.loader, self.highlights[self.index].unique_id)
+            except BridgeError as exc:
+                if exc.code != ErrorCode.NOT_FOUND:
+                    raise
+                items = []  # empty / vanished highlight: skip it
+            self.items, self.pos = items, 0
+            self.index += 1
+        item = self.items[self.pos]
+        self.pos += 1
+        return item
+
+
+class ProfileJob:
+    def __init__(self, loader, profile, options, known_ids):
+        self.loader, self.profile = loader, profile
+        self.known = set(known_ids)
+        self.seen = set()
+        self.downloaded = self.skipped = self.failed = 0
+        self.pending = None
+        self.index = 0
+        limit = int(options.get("limit") or 0)
+        posts_expected = min(limit, profile.mediacount) if limit else profile.mediacount
+        self.sections = []
+        if options.get("stories"):
+            self.sections.append(_Section("stories", "story", lambda: iter(
+                [it for s in loader.get_stories(userids=[profile.userid]) for it in s.get_items()])))
+        if options.get("highlights"):
+            self.sections.append(_Section("highlights", "highlight", lambda: _HighlightItems(loader, profile)))
+        if options.get("posts"):
+            self.sections.append(_Section("posts", "post", profile.get_posts, limit, posts_expected))
+        if options.get("reels"):
+            self.sections.append(_Section("reels", "post", profile.get_reels, limit, limit or None))
+
+    def next_item(self):
+        while self.index < len(self.sections):
+            sec = self.sections[self.index]
+            if sec.limit and sec.taken >= sec.limit:
+                self.index += 1
+                continue
+            if sec.iterator is None:
+                sec.iterator = iter(sec.factory())  # may raise; retried on the next call
+            try:
+                item = next(sec.iterator)
+            except StopIteration:
+                self.index += 1
+                continue
+            sec.taken += 1
+            return sec, item
+        return None
+
+    def status(self, state, sec=None, item_id=None, **extra):
+        result = {"status": state, "downloaded": self.downloaded, "skipped": self.skipped, "failed": self.failed}
+        if sec is not None:
+            result.update(section=sec.name, position=sec.taken, expected=sec.expected)
+        if item_id is not None:
+            result["id"] = item_id
+        result.update(extra)
+        return result
+
+
+def _profile_info(profile):
+    return {"username": profile.username, "full_name": profile.full_name, "posts": profile.mediacount,
+            "is_private": profile.is_private, "followed": profile.followed_by_viewer,
+            "userid": str(profile.userid)}
+
+
+@_envelope
+def profile_info(username):
+    """Basic facts about a profile, for the options screen."""
+    loader = _require_loader()
+    return _profile_info(instaloader.Profile.from_username(loader.context, username))
+
+
+@_envelope
+def profile_start(username, options_json, known_ids_json="[]"):
+    """Plan a profile download. options: {"stories", "highlights", "posts", "reels": bool, "limit": int (0 = all)}.
+    known_ids: shortcodes / story media ids already downloaded; they are skipped."""
+    global _profile_job
+    loader = _require_loader()
+    profile = instaloader.Profile.from_username(loader.context, username)
+    if profile.is_private and not profile.followed_by_viewer and profile.username != loader.context.username:
+        raise BridgeError(ErrorCode.PRIVATE, "private profile not followed")
+    _profile_job = ProfileJob(loader, profile, json.loads(options_json), json.loads(known_ids_json))
+    return _profile_info(profile)
+
+
+@_envelope
+def profile_next(target_dir, tz_name=None):
+    """Advance the job by one item. Returns {"status": "downloaded" | "skipped" | "failed" |
+    "finished", counters, "section", "position", "expected", "id", "files"}. Fatal errors are
+    returned as errors and the item stays pending for a retry."""
+    job = _profile_job
+    if job is None:
+        raise BridgeError(ErrorCode.UNKNOWN, "no profile download in progress")
+    with _iphone_disabled(job.loader):  # one request per item instead of several
+        if job.pending is None:
+            job.pending = job.next_item()
+            if job.pending is None:
+                return job.status("finished")
+        sec, item = job.pending
+        item_id = item.shortcode if sec.kind == "post" else str(item.mediaid)
+        if item_id in job.known or item_id in job.seen:
+            job.pending = None
+            job.skipped += 1
+            return job.status("skipped", sec, item_id)
+        try:
+            files = _download_items(job.loader, [item], target_dir, sec.kind, tz_name, None)
+        except Exception as exc:  # noqa: BLE001
+            if classify(exc) in PROFILE_FATAL:
+                raise  # keep job.pending: the same item is retried after the app waited
+            job.pending = None
+            job.seen.add(item_id)
+            job.failed += 1
+            return job.status("failed", sec, item_id, detail="%s: %s" % (type(exc).__name__, exc))
+        job.pending = None
+        job.seen.add(item_id)
+        job.downloaded += 1
+        return job.status("downloaded", sec, item_id, kind=sec.kind, files=files)
+
+
+@_envelope
+def profile_cancel():
+    global _profile_job
+    _profile_job = None
+    return None
+
+
 def story_items(loader, reel):
     """StoryItems of a Story or Highlight, tolerating Instagram's changed iPhone API.
 

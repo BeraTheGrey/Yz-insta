@@ -31,6 +31,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.core.content.ContextCompat
 import com.yzinsta.downloader.R
 import com.yzinsta.downloader.data.download.DownloadStage
+import com.yzinsta.downloader.data.profile.ProfileDownloadService
+import com.yzinsta.downloader.data.profile.ProfileJobState
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yzinsta.downloader.domain.AppError
 import com.yzinsta.downloader.ui.home.ErrorCard
 
@@ -63,7 +67,14 @@ fun DownloadSection(state: DownloadUiState, vm: DownloadViewModel) {
         }
     }
 
+    val profileJob by vm.profileJob.collectAsStateWithLifecycle()
+
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        ProfileJobCard(
+            state = profileJob,
+            onStop = { ProfileDownloadService.stop(context) },
+            onDismiss = vm::dismissProfileJob,
+        )
         OutlinedTextField(
             value = state.link,
             onValueChange = vm::onLinkChange,
@@ -101,6 +112,15 @@ fun DownloadSection(state: DownloadUiState, vm: DownloadViewModel) {
                     modifier = Modifier.padding(16.dp),
                 )
             }
+            is DownloadStatus.ProfileReady -> ProfileOptionsCard(
+                info = status.info,
+                busy = profileJob is ProfileJobState.Running,
+                onStart = { options ->
+                    ProfileDownloadService.start(context, status.info.username, options)
+                    vm.onProfileStarted()
+                },
+                onCancel = vm::dismissProfileOptions,
+            )
             is DownloadStatus.Failed -> if (!status.error.requiresLogin) {
                 ErrorCard(
                     status.error,

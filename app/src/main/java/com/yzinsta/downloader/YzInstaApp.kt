@@ -3,6 +3,9 @@ package com.yzinsta.downloader
 import android.app.Application
 import com.yzinsta.downloader.data.download.DownloadRepository
 import com.yzinsta.downloader.data.download.MediaStoreExporter
+import com.yzinsta.downloader.data.history.DownloadHistory
+import com.yzinsta.downloader.data.history.SqliteDownloadHistory
+import com.yzinsta.downloader.data.profile.ProfileDownloadManager
 import com.yzinsta.downloader.data.python.ChaquopyBridge
 import com.yzinsta.downloader.data.python.InstaloaderBridge
 import com.yzinsta.downloader.data.session.AndroidWebCookieJar
@@ -25,5 +28,10 @@ class AppContainer(app: Application) {
     val bridge: InstaloaderBridge = ChaquopyBridge(app)
     val webCookies: WebCookieJar = AndroidWebCookieJar()
     val sessionRepository = SessionRepository(bridge, EncryptedSessionStore(app), webCookies)
-    val downloadRepository = DownloadRepository(bridge, MediaStoreExporter(app), app.cacheDir)
+    private val exporter = MediaStoreExporter(app)
+    val history: DownloadHistory = SqliteDownloadHistory(app)
+    val downloadRepository = DownloadRepository(bridge, exporter, app.cacheDir, history)
+    val profileManager = ProfileDownloadManager(
+        bridge, exporter, history, sessionRepository, java.io.File(app.cacheDir, "profile"),
+    )
 }

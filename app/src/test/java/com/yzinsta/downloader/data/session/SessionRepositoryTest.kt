@@ -25,6 +25,15 @@ class SessionRepositoryTest {
         override suspend fun verifySession() = verifyResult
         override suspend fun clearSession() { cleared++ }
         override suspend fun instaloaderVersion() = "test"
+        override suspend fun profileInfo(username: String) =
+            throw UnsupportedOperationException()
+        override suspend fun profileStart(
+            username: String,
+            options: com.yzinsta.downloader.data.profile.ProfileOptions,
+            knownIds: Set<String>,
+        ) = throw UnsupportedOperationException()
+        override suspend fun profileNext(targetDir: java.io.File) = throw UnsupportedOperationException()
+        override suspend fun profileCancel() {}
         override suspend fun download(
             target: com.yzinsta.downloader.data.download.InstaLink,
             targetDir: java.io.File,

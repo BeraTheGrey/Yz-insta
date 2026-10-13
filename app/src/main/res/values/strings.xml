@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">YzInsta</string>
+    <string name="app_name" translatable="false">YzInsta</string>
 
     <string name="welcome_body">Log in with your Instagram account to download posts and reels. You log in on Instagram\'s own page; this app never sees your password.</string>
     <string name="login_button">Log in with Instagram</string>
     <string name="login_title">Instagram login</string>
     <string name="cancel">Cancel</string>
-    <string name="logged_in_as">\@%1$s</string>
+    <string name="logged_in_as" translatable="false">\@%1$s</string>
     <string name="logged_in_unverified">Logged in (not verified)</string>
     <string name="logout">Log out</string>
     <string name="retry">Retry</string>
@@ -44,4 +44,27 @@
     <string name="cookie_login_body">Use this if the Instagram login page doesn\'t load. Log in to instagram.com in a browser on your computer, open the developer tools (F12) → Application/Storage → Cookies → https://www.instagram.com and copy the value of \"sessionid\" (or the whole Cookie header). This token gives full access to your account: never share it with anyone.</string>
     <string name="cookie_login_field">sessionid or Cookie header</string>
     <string name="cookie_login_confirm">Log in</string>
+    <string name="stop">Stop</string>
+    <string name="ok">OK</string>
+    <string name="section_stories">Stories</string>
+    <string name="section_highlights">Highlights</string>
+    <string name="section_posts">Posts</string>
+    <string name="section_reels">Reels</string>
+    <string name="profile_post_count">%1$d posts</string>
+    <string name="profile_private">private account</string>
+    <string name="profile_limit_label">Posts and reels</string>
+    <string name="profile_limit_n">Latest %1$d</string>
+    <string name="profile_limit_all">All</string>
+    <string name="profile_all_warning">Downloading everything can take a long time; Instagram may slow it down, the app then waits and continues.</string>
+    <string name="profile_skip_note">Items downloaded before are skipped, so you can stop and continue later.</string>
+    <string name="profile_busy">A profile download is already running.</string>
+    <string name="profile_start">Start download</string>
+    <string name="profile_channel">Profile downloads</string>
+    <string name="profile_notification_title" translatable="false">\@%1$s</string>
+    <string name="profile_progress_counts">%1$d downloaded · %2$d skipped · %3$d failed</string>
+    <string name="profile_waiting">Instagram is limiting requests. Continuing in about %1$d min…</string>
+    <string name="profile_done_title">\@%1$s downloaded</string>
+    <string name="profile_cancelled_title">\@%1$s stopped</string>
+    <string name="profile_failed_title">\@%1$s could not be downloaded</string>
+    <string name="profile_where">Files are in Pictures/InstaloaderApp/&lt;username&gt;.</string>
 </resources>

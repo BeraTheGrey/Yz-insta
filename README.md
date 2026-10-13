@@ -12,6 +12,28 @@ Desteklenen bağlantılar:
 | `instagram.com/p/<kod>`, `/reel/<kod>`, `/reels/<kod>`, `/tv/<kod>` | Gönderi / reel (tüm kaydırmalı medya) |
 | `instagram.com/stories/<kullanıcı>/<id>` | O hikâye (aktif olmalı, 24 saat) |
 | `instagram.com/stories/highlights/<id>` ve Instagram'ın paylaştığı `instagram.com/s/…` öne çıkan bağlantıları | Öne çıkanın tamamı |
+| `instagram.com/<kullanıcı>/` (profil) | Seçime göre hikâyeler, öne çıkanlar, gönderiler, reels (arka planda) |
+
+### Profil indirme
+
+Profil bağlantısı yapıştırılınca bir seçenek kartı açılır: Hikâyeler / Öne çıkanlar /
+Gönderiler / Reels ve gönderi-reel sınırı (Son 20 / Son 50 / Tümü). İndirme bir
+**foreground service** olarak arka planda çalışır; bildirimde ilerleme ve **Durdur**
+butonu görünür, uygulamada da aynı durum kartı vardır.
+
+- Her öğe indirilir indirilmez galeriye kopyalanır ve **indirme geçmişine** (SQLite)
+  yazılır. Aynı profil tekrar indirildiğinde daha önce inenler atlanır; yani durdurup
+  sonra devam etmek, ya da sadece yenileri almak mümkündür. Tekil olarak indirilen
+  gönderi ve hikâyeler de geçmişe yazılır.
+- Instagram yavaşlatırsa (rate limit) ya da ağ giderse uygulama 3, 6, 10, 15, 15 dakika
+  bekleyip **aynı öğeden** devam eder; beklerken bildirimde kalan süre yazar. Bunlar da
+  tükenirse iş durur ve kaldığı yer geçmişte kalır.
+- Öğeler arasında Instaloader'ın kendi hızına ek olarak 1,5 sn beklenir; profil işinde
+  istek sayısını azaltmak için iPhone kalite sorguları kapalıdır.
+- Oturum düşerse iş durur ve giriş ekranına dönülür. Takip edilmeyen gizli hesaplar
+  baştan reddedilir.
+- Android 15+ "dataSync" servislerine günde ~6 saat verir; süre dolarsa iş durur, tekrar
+  başlatınca kaldığı yerden devam eder.
 
 Dosyalar `kullanıcı_YYYY-AA-GG_SS-DD-ss.<uzantı>` biçiminde adlandırılır; tarih paylaşım
 zamanıdır, telefonun saat diliminde. Kaydırmalı gönderilerde sona `_1`, `_2`… eklenir;
@@ -176,8 +198,7 @@ bunları kontrol edin:
   ait olabilir" der.
 - **WebView girişi.** Instagram, gömülü tarayıcılardan gelen girişlere ek doğrulama
   (checkpoint) isteyebilir ya da sayfayı düzgün göstermeyebilir. WebView ayarları Seal'in
-  çerez sayfasıyla aynı: tüm http(s) gezinmelerine izin verilir, `X-Requested-With`
-  başlığı kapatılır. Giriş ekranının ⋮ menüsünde **Yenile** ve **Masaüstü sürümü**
+  çerez sayfasıyla aynı: tüm http(s) gezinmelerine izin verilir. Giriş ekranının ⋮ menüsünde **Yenile** ve **Masaüstü sürümü**
   seçenekleri var. Ana sayfa yüklenemezse hata ekranda gösterilir; WebView konsol
   mesajları logcat'e `LoginWebView` etiketiyle yazılır.
 - **Yedek giriş: çerez yapıştırma.** Giriş sayfası hiç çalışmazsa, karşılama ekranındaki
@@ -193,14 +214,14 @@ bunları kontrol edin:
   kaynaklarını kullanıyor. Gerçek bir hesapla yapılan testte yüksek kalite denemesi aynı
   boyutta dosya verdi, yani kalite kaybı görülmedi. Öne çıkan bağlantısında sahibin adı
   yoktur; Instagram yanıtında da yoksa dosya adı `instagram_…` ile başlar.
-- **Kapsam.** Profilin tamamını indirme yok (planlandı). İndirme ViewModel kapsamında çalışır; uygulama arka plana atılıp sistem
-  tarafından öldürülürse yarıda kalır. Foreground service ve indirme geçmişi henüz yok.
+- **Tekil indirmeler** ViewModel kapsamında çalışır (profil indirmeleri ise servistedir); uygulama arka plana atılıp sistem
+  tarafından öldürülürse yarıda kalır. İndirme geçmişi ekranı henüz yok (veri tutuluyor).
 - **Android 8–9.** Dosyalar galeriye `WRITE_EXTERNAL_STORAGE` izniyle doğrudan kopyalanır
   (izin ilk indirmede istenir). Android 10+ izin gerektirmez.
 - **Uygulama boyutu.** Gömülü Python yüzünden debug APK ~49 MB'tır (iki ABI; CI artifact zip'i ~30 MB).
 - **`EncryptedSharedPreferences`.** `androidx.security:security-crypto` Google tarafından
   kullanımdan kaldırıldı (deprecated), ancak çalışmaya devam ediyor. İleride Keystore +
   DataStore'a geçilebilir. Bu değişiklik `SessionStore` arayüzünün arkasında kalır.
-- **Test durumu.** Kod; birim testleri (35 Kotlin, 36 Python) ve hem yerel hem CI derlemesiyle
+- **Test durumu.** Kod; birim testleri (50 Kotlin, 75 Python) ve hem yerel hem CI derlemesiyle
   doğrulandı. Cihaz/emülatör üzerinde ve gerçek bir Instagram hesabıyla uçtan uca test
   yapılamadı. İlk kurulumda giriş → doğrulama → indirme akışını bir kez elle deneyin.

@@ -27,6 +27,15 @@ class DownloadRepositoryTest {
         override suspend fun verifySession() = Outcome.Success("alice")
         override suspend fun clearSession() {}
         override suspend fun instaloaderVersion() = "test"
+        override suspend fun profileInfo(username: String) =
+            throw UnsupportedOperationException()
+        override suspend fun profileStart(
+            username: String,
+            options: com.yzinsta.downloader.data.profile.ProfileOptions,
+            knownIds: Set<String>,
+        ) = throw UnsupportedOperationException()
+        override suspend fun profileNext(targetDir: java.io.File) = throw UnsupportedOperationException()
+        override suspend fun profileCancel() {}
         override suspend fun download(target: InstaLink, targetDir: File, progress: ProgressListener): Outcome<DownloadedBatch> {
             calledWith = target
             return result(target, targetDir, progress)
@@ -98,6 +107,30 @@ class DownloadRepositoryTest {
         val bridge = FakeBridge { _, dir, _ -> Outcome.Success(DownloadedBatch("1", "z", write(dir, "s.mp4"))) }
         DownloadRepository(bridge, FakeExporter(), tmp.root).download("https://www.instagram.com/stories/z/123456/")
         assertEquals(InstaLink.Story("z", "123456"), bridge.calledWith)
+    }
+
+    @Test
+    fun `single downloads are recorded in the history`() = runTest {
+        val history = FakeHistory()
+        DownloadRepository(FakeBridge(::post), FakeExporter(), tmp.root, history)
+            .download("https://www.instagram.com/p/ABCDEFG/")
+        assertEquals(listOf("bob/ABCDEFG/post/2"), history.records)
+    }
+
+    private class FakeHistory : com.yzinsta.downloader.data.history.DownloadHistory {
+        val records = mutableListOf<String>()
+        override suspend fun record(owner: String, itemId: String, kind: String, files: Int) {
+            records += "$owner/$itemId/$kind/$files"
+        }
+        override suspend fun knownIds(owner: String) = emptySet<String>()
+    }
+
+    @Test
+    fun `profile links are not single downloads`() = runTest {
+        val bridge = FakeBridge(::post)
+        val result = DownloadRepository(bridge, FakeExporter(), tmp.root).download("https://www.instagram.com/zeynep/")
+        assertEquals(Outcome.Failure(AppError.InvalidLink), result)
+        assertEquals(null, bridge.calledWith)
     }
 
     @Test

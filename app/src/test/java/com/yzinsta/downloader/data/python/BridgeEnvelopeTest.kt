@@ -88,4 +88,24 @@ class BridgeEnvelopeTest {
         val unknown = (BridgeEnvelope.decode(noOwner, BridgeEnvelope::downloadedBatch) as Outcome.Success).value
         assertEquals("instagram", unknown.files.single().album)
     }
+
+    @Test
+    fun `profile steps`() {
+        fun step(raw: String) = (BridgeEnvelope.decode(raw, BridgeEnvelope::profileStep) as Outcome.Success).value
+        val downloaded = step("""{"ok":true,"data":{"status":"downloaded","downloaded":3,"skipped":1,"failed":0,
+            "section":"posts","position":4,"expected":20,"id":"ABC","kind":"post","files":[
+            {"path":"/c/z/a.jpg","name":"a.jpg","owner":"zeynep","kind":"image","mime":"image/jpeg"}]}}""")
+        downloaded as com.yzinsta.downloader.data.profile.ProfileStep.Downloaded
+        assertEquals("ABC", downloaded.itemId)
+        assertEquals(com.yzinsta.downloader.data.profile.ProfileStep.Position("posts", 4, 20), downloaded.at)
+        assertEquals(com.yzinsta.downloader.data.profile.ProfileCounters(3, 1, 0), downloaded.counters)
+        assertEquals("zeynep", downloaded.files.single().album)
+
+        val skipped = step("""{"ok":true,"data":{"status":"skipped","downloaded":3,"skipped":2,"failed":0,
+            "section":"highlights","position":1,"expected":null,"id":"9"}}""")
+        assertEquals(null, (skipped as com.yzinsta.downloader.data.profile.ProfileStep.Skipped).at.expected)
+
+        val finished = step("""{"ok":true,"data":{"status":"finished","downloaded":3,"skipped":2,"failed":1}}""")
+        assertTrue(finished is com.yzinsta.downloader.data.profile.ProfileStep.Finished)
+    }
 }

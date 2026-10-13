@@ -6,6 +6,9 @@ import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import com.yzinsta.downloader.data.download.DownloadedBatch
 import com.yzinsta.downloader.data.download.InstaLink
+import com.yzinsta.downloader.data.profile.ProfileInfo
+import com.yzinsta.downloader.data.profile.ProfileOptions
+import com.yzinsta.downloader.data.profile.ProfileStep
 import com.yzinsta.downloader.data.session.InstagramCookies
 import com.yzinsta.downloader.domain.AppError
 import com.yzinsta.downloader.domain.Outcome
@@ -14,6 +17,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.util.TimeZone
 
@@ -42,7 +47,7 @@ class ChaquopyBridge(
                 module().callAttr(function, *args)?.toString()
             } catch (e: PyException) {
                 // igbridge never lets exceptions escape on purpose; this is a bug or an import failure.
-                """{"ok":false,"error":{"code":"UNKNOWN","detail":${org.json.JSONObject.quote(e.message ?: "PyException")}}}"""
+                """{"ok":false,"error":{"code":"UNKNOWN","detail":${JSONObject.quote(e.message ?: "PyException")}}}"""
             }
         }
     }
@@ -73,8 +78,32 @@ class ChaquopyBridge(
             is InstaLink.Post -> call("download_post", target.shortcode, dir, tz, progress)
             is InstaLink.Story -> call("download_story", target.username, target.mediaId, dir, tz, progress)
             is InstaLink.Highlight -> call("download_highlight", target.id, dir, tz, progress)
+            is InstaLink.Profile -> return Outcome.Failure(AppError.Unknown("profiles download via profileStart/profileNext"))
         }
         return BridgeEnvelope.decode(raw, BridgeEnvelope::downloadedBatch)
+    }
+
+    override suspend fun profileInfo(username: String): Outcome<ProfileInfo> =
+        BridgeEnvelope.decode(call("profile_info", username), BridgeEnvelope::profileInfo)
+
+    override suspend fun profileStart(username: String, options: ProfileOptions, knownIds: Set<String>): Outcome<ProfileInfo> {
+        val optionsJson = JSONObject()
+            .put("stories", options.stories)
+            .put("highlights", options.highlights)
+            .put("posts", options.posts)
+            .put("reels", options.reels)
+            .put("limit", options.limit)
+        return BridgeEnvelope.decode(
+            call("profile_start", username, optionsJson.toString(), JSONArray(knownIds.toList()).toString()),
+            BridgeEnvelope::profileInfo,
+        )
+    }
+
+    override suspend fun profileNext(targetDir: File): Outcome<ProfileStep> =
+        BridgeEnvelope.decode(call("profile_next", targetDir.absolutePath, TimeZone.getDefault().id), BridgeEnvelope::profileStep)
+
+    override suspend fun profileCancel() {
+        call("profile_cancel")
     }
 
     override suspend fun instaloaderVersion(): String = lock.withLock {
