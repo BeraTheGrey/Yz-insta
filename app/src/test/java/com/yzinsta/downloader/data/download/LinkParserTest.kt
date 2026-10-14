@@ -73,6 +73,15 @@ class LinkParserTest {
     }
 
     @Test
+    fun `bare username`() {
+        assertEquals(InstaLink.Profile("zeynep.k_1"), LinkParser.parse("zeynep.k_1"))
+        assertEquals(InstaLink.Profile("zeynep"), LinkParser.parse("  @zeynep \n"))
+        assertEquals(InstaLink.Profile("ilker"), LinkParser.parse("ılker"))
+        listOf("two words", "zeynep/", ".zeynep", "zeynep.", "a..b", "12345", "explore", "@", "a".repeat(31))
+            .forEach { assertNull(it, LinkParser.parse(it)) }
+    }
+
+    @Test
     fun `turkish i in typed links`() {
         assertEquals(InstaLink.Profile("ilkermaister"), LinkParser.parse("https://İnstagram.com/ılkermaister?obrf=x"))
         assertEquals(InstaLink.Profile("Ilker"), LinkParser.parse("İnstagram.com/İlker"))
@@ -84,7 +93,7 @@ class LinkParserTest {
         listOf(
             null,
             "",
-            "hello",
+            "hello there",
             "https://www.instagram.com/explore/",
             "https://www.instagram.com/accounts/login/",
             "https://www.instagram.com/direct/inbox/",

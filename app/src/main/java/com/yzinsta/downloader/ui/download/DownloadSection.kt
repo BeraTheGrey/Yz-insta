@@ -80,10 +80,10 @@ fun DownloadSection(state: DownloadUiState, vm: DownloadViewModel) {
             onValueChange = vm::onLinkChange,
             modifier = Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.link_label)) },
-            placeholder = { Text("https://www.instagram.com/…") },
+            placeholder = { Text("https://www.instagram.com/…  /  @zeynep") },
             singleLine = true,
             enabled = !state.isRunning,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go, autoCorrectEnabled = false),
             keyboardActions = KeyboardActions(onGo = { if (state.link.isNotBlank()) start() }),
             trailingIcon = {
                 TextButton(

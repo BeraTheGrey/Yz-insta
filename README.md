@@ -12,7 +12,7 @@ Desteklenen bağlantılar:
 | `instagram.com/p/<kod>`, `/reel/<kod>`, `/reels/<kod>`, `/tv/<kod>` | Gönderi / reel (tüm kaydırmalı medya) |
 | `instagram.com/stories/<kullanıcı>/<id>` | O hikâye (aktif olmalı, 24 saat) |
 | `instagram.com/stories/highlights/<id>` ve Instagram'ın paylaştığı `instagram.com/s/…` öne çıkan bağlantıları | Öne çıkanın tamamı |
-| `instagram.com/<kullanıcı>/` (profil) | Seçime göre hikâyeler, öne çıkanlar, gönderiler, reels (arka planda) |
+| `instagram.com/<kullanıcı>/` (profil) ya da sadece `kullanıcı` / `@kullanıcı` yazmak | Seçime göre hikâyeler, öne çıkanlar, gönderiler, reels (arka planda) |
 
 ### Profil indirme
 

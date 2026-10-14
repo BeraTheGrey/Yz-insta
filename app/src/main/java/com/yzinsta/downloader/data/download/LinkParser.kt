@@ -39,6 +39,9 @@ object LinkParser {
         RegexOption.IGNORE_CASE,
     )
 
+    // Just a username typed into the field: "zeynep" or "@zeynep" (the whole input, one word).
+    private val bareUsername = Regex("""^@?([A-Za-z0-9_.]{1,30})$""")
+
     /** First path segments that are Instagram pages, not usernames. */
     private val reserved = setOf(
         "p", "reel", "reels", "tv", "stories", "explore", "accounts", "direct", "s", "about", "legal",
@@ -63,10 +66,17 @@ object LinkParser {
         post.find(text)?.let { return InstaLink.Post(it.groupValues[1]) }
         profile.find(text)?.let { match ->
             val user = match.groupValues[1]
-            if (user.lowercase() !in reserved && !user.startsWith('.')) return InstaLink.Profile(user)
+            if (isUsername(user)) return InstaLink.Profile(user)
+        }
+        bareUsername.find(text.trim())?.let { match ->
+            val user = match.groupValues[1]
+            if (isUsername(user) && user.any { it.isLetter() }) return InstaLink.Profile(user)
         }
         return null
     }
+
+    private fun isUsername(user: String) =
+        user.lowercase() !in reserved && !user.startsWith('.') && !user.endsWith('.') && ".." !in user
 
     private fun decodeBase64(value: String): String? {
         val standard = value.replace('-', '+').replace('_', '/').trimEnd('=')
